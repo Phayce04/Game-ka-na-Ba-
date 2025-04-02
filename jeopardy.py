@@ -69,7 +69,61 @@ green = (0,255,0)
 yellow = (255,255,0)
 
 # WIDTH, HEIGHT = 1200,600
-
+class TutorialScreen:
+    def __init__(self):
+        self.screen = pygame.display.set_mode((WIDTH, HEIGHT))
+        self.font = pygame.font.SysFont('Arial', 36)
+        try:
+            # Replace 'tutorial.jpg' with your actual image file
+            self.tutorial_image = pygame.image.load('tutorial.jpg')
+            self.tutorial_image = pygame.transform.scale(self.tutorial_image, (WIDTH, HEIGHT))
+        except:
+            # Fallback if image doesn't load
+            self.tutorial_image = None
+            print("Could not load tutorial image")
+        
+        self.continue_text = self.font.render("Click anywhere to continue", True, white)
+        self.continue_rect = self.continue_text.get_rect(center=(WIDTH//2, HEIGHT-50))
+        
+    def show(self):
+        running = True
+        while running:
+            self.screen.fill(black)
+            
+            if self.tutorial_image:
+                self.screen.blit(self.tutorial_image, (0, 0))
+            else:
+                # Fallback content if image didn't load
+                title = self.font.render("Tutorial", True, white)
+                self.screen.blit(title, (WIDTH//2 - title.get_width()//2, 50))
+                
+                instructions = [
+                    "1. Select a team by clicking on their name",
+                    "2. Click on a question value to see the question",
+                    "3. Click again to see the answer",
+                    "4. Click the green button if the team answered correctly",
+                    "5. Click the red button if the answer was wrong",
+                    "6. The team with the highest score wins!"
+                ]
+                
+                for i, line in enumerate(instructions):
+                    text = self.font.render(line, True, white)
+                    self.screen.blit(text, (100, 150 + i*50))
+            
+            # Blinking "continue" text
+            if pygame.time.get_ticks() % 1000 < 500:
+                self.screen.blit(self.continue_text, self.continue_rect)
+            
+            pygame.display.flip()
+            
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    pygame.quit()
+                    sys.exit()
+                if event.type == pygame.MOUSEBUTTONDOWN:
+                    running = False
+            
+            clock.tick(30)
 class TeamSetupScreen:
     def __init__(self):
         self.screen = pygame.display.set_mode((WIDTH, HEIGHT))
@@ -164,7 +218,84 @@ class TeamSetupScreen:
             
             pygame.display.flip()
             clock.tick(30)
-
+class GameOverScreen:
+    def __init__(self):
+        self.screen = pygame.display.set_mode((WIDTH, HEIGHT))
+        self.font_large = pygame.font.SysFont('Arial', 72)
+        self.font_medium = pygame.font.SysFont('Arial', 48)
+        self.font_small = pygame.font.SysFont('Arial', 36)
+        
+    def show(self):
+        # Determine winning team(s)
+        max_score = max(team_scores)
+        winners = [i for i, score in enumerate(team_scores) if score == max_score]
+        
+        running = True
+        while running:
+            self.screen.fill(black)
+            
+            # Game Over title
+            title = self.font_large.render("GAME OVER", True, yellow)
+            self.screen.blit(title, (WIDTH//2 - title.get_width()//2, 100))
+            
+            # Display winner(s)
+            if len(winners) == 1:
+                winner_text = self.font_medium.render(f"Winner: {team_names[winners[0]]}!", True, green)
+            else:
+                # Handle tie
+                winner_names = " & ".join([team_names[i] for i in winners])
+                winner_text = self.font_medium.render(f"It's a tie! Winners: {winner_names}", True, green)
+            
+            self.screen.blit(winner_text, (WIDTH//2 - winner_text.get_width()//2, 250))
+            
+            # Display all scores
+            score_title = self.font_medium.render("Final Scores:", True, white)
+            self.screen.blit(score_title, (WIDTH//2 - score_title.get_width()//2, 350))
+            
+            for i, (name, score) in enumerate(zip(team_names, team_scores)):
+                score_text = self.font_small.render(f"{name}: {score}", True, white)
+                self.screen.blit(score_text, (WIDTH//2 - score_text.get_width()//2, 420 + i*50))
+            
+            # Continue prompt
+            continue_text = self.font_small.render("Click to return to home screen", True, yellow)
+            if pygame.time.get_ticks() % 1000 < 500:  # Blinking effect
+                self.screen.blit(continue_text, (WIDTH//2 - continue_text.get_width()//2, HEIGHT-100))
+            
+            pygame.display.flip()
+            
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    pygame.quit()
+                    sys.exit()
+                if event.type == pygame.MOUSEBUTTONDOWN:
+                    running = False
+                    self.reset_game()
+            
+            clock.tick(30)
+    
+    def reset_game(self):
+        """Reset the game state to start over"""
+        global team_scores, already_selected, team_selected, question_time
+        global grid_drawn_flag, selected_team_index, show_timer_flag, show_question_flag
+        
+        # Reset game state variables
+        team_scores = [0] * len(team_names)
+        already_selected = []
+        team_selected = False
+        question_time = False
+        grid_drawn_flag = False
+        selected_team_index = -1
+        show_timer_flag = False
+        show_question_flag = False
+        
+        # Show home screen again
+        home_screen = HomeScreen()
+        home_screen.show()
+        home_screen.wait_for_click()
+        
+        # Show tutorial again
+        tutorial = TutorialScreen()
+        tutorial.show()
 class Pane(object):
     def __init__(self):
         pygame.init()
@@ -318,11 +449,19 @@ class HomeScreen:
 home_screen = HomeScreen()
 home_screen.show()
 home_screen.wait_for_click()
+# Then show the tutorial screen
+tutorial = TutorialScreen()
+tutorial.show()
 team_setup = TeamSetupScreen()
 team_setup.show()
+#fix tile errors here, di napipindot yung top row
 while Running_flag:
     click_count=0
     clock.tick(60)
+    if len(already_selected) == 30:  # 5 categories * 6 questions = 30
+        game_over = GameOverScreen()
+        game_over.show()
+        continue  
     while not question_time:
         r, c = 0 , 0
         if not grid_drawn_flag:
@@ -342,13 +481,13 @@ while Running_flag:
             if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                 if team_selected:
                     print('Board Time')
-                    for col in range(7):
+                    for col in range(7): 
                         if(col*(WIDTH/6)<event.pos[0]<(col+1)*(WIDTH/6)):
                             # print('col',col)
                             c = col
                             for row in range(6):
                                 if(row*(HEIGHT/6)<event.pos[1]<(row+1)*(HEIGHT/6)):
-                                    r = row
+                                    r = row+1
                                     print('Clicked on:',r,c,'SCORE:',board_matrix[r][c])
                                     show_question_flag = True
                                     if (r,c) not in already_selected:

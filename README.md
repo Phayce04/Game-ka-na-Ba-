@@ -13,13 +13,13 @@ A Python implementation of a Jeopardy-style quiz game using Pygame.
 - Mouse-controlled interface
 
 ## Requirements
-```bash
+
 Python 3.6+
 Pygame 2.0+
 Pandas
 
-How to Play
-Start Screen:
+
+##  How to Start
 
 Click "Start" to begin
 

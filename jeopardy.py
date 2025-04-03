@@ -2,6 +2,9 @@ import os, sys
 import pandas as pd
 import pygame
 import time
+import subprocess
+import os
+from tkinter import filedialog, Tk
 from pygame.locals import *
 MAX_TIME_LIMIT = 60
 WIDTH, HEIGHT = 1200,800
@@ -18,18 +21,31 @@ board_matrix=[
               [1000,1000,1000,1000,1000,1000]
               ]
 q={}
-def get_questions():
-    # fileName = input('Enter Question File Name:')
-    fileName = 'qset4_Book'
-    df = pd.read_csv(fileName+'.csv',header=0)
-    for i,row in enumerate(df['Row']):
+
+def load_questions(file_name):
+    global q, board_matrix
+    q = {}
+    try:
+        df = pd.read_csv(file_name, header=0)
+        for i, row in enumerate(df['Row']):
             question = str(df["Question"][i])
             answer = str(df["Answer"][i])
-            q[(row,df['Col'][i])]={"question":question,"answer":answer}
-    for i,cat in enumerate(range(6)):
-        board_matrix[0][i]=df['Categories'][i]
-
-get_questions()
+            q[(row, df['Col'][i])] = {"question": question, "answer": answer}
+        
+        # Update categories
+        for i, cat in enumerate(range(6)):
+            if i < len(df['Categories']):
+                board_matrix[0][i] = df['Categories'][i]
+            else:
+                board_matrix[0][i] = f"Category {i+1}"
+                
+    except Exception as e:
+        print(f"Error loading questions: {e}")
+        # Fallback to default questions
+        board_matrix[0] = ["Category 1", "Category 2", "Category 3", 
+                          "Category 4", "Category 5", "Category 6"]
+# Replace get_questions() call with:
+load_questions('qset4_Book.csv')  # Default file
 
 class Player(object):
     def __init__(self):
@@ -133,8 +149,13 @@ class TeamSetupScreen:
         self.team_count = 2
         self.team_inputs = []
         self.active_input = None
-        self.done_button = pygame.Rect(WIDTH // 2 - 100, HEIGHT - 100, 200, 50)
         
+        # Add CSV control buttons
+        self.csv_button = pygame.Rect(WIDTH//2 - 150, HEIGHT - 200, 300, 50)
+        self.edit_button = pygame.Rect(WIDTH//2 - 150, HEIGHT - 130, 300, 50)
+        self.done_button = pygame.Rect(WIDTH//2 - 100, HEIGHT - 60, 200, 50)
+        
+        self.current_csv = 'questions.csv'  # Default CSV file
     def show(self):
         running = True
         input_boxes = []
@@ -144,7 +165,20 @@ class TeamSetupScreen:
             
             # Title
             title = self.font_large.render("Team Setup", True, blue)
-            self.screen.blit(title, (WIDTH // 2 - title.get_width() // 2, 50))
+            self.screen.blit(title, (WIDTH//2 - title.get_width()//2, 50))
+            
+            # Current CSV display
+            csv_text = self.font_small.render(f"Using: {self.current_csv}", True, black)
+            self.screen.blit(csv_text, (WIDTH//2 - csv_text.get_width()//2, 120))
+            
+            # CSV control buttons
+            pygame.draw.rect(self.screen, grey, self.csv_button)
+            csv_btn_text = self.font_medium.render("Change CSV", True, black)
+            self.screen.blit(csv_btn_text, (self.csv_button.x + 50, self.csv_button.y + 10))
+            
+            pygame.draw.rect(self.screen, grey, self.edit_button)
+            edit_btn_text = self.font_medium.render("Edit CSV", True, black)
+            self.screen.blit(edit_btn_text, (self.edit_button.x + 70, self.edit_button.y + 10))
             
             # Team count controls
             count_text = self.font_medium.render("Number of Teams:", True, black)
@@ -189,6 +223,10 @@ class TeamSetupScreen:
                     sys.exit()
                 
                 if event.type == pygame.MOUSEBUTTONDOWN:
+                    if self.csv_button.collidepoint(event.pos):
+                        self.select_csv_file()
+                    elif self.edit_button.collidepoint(event.pos):
+                        self.edit_csv_file()
                     # Check team count buttons
                     if minus_button.collidepoint(event.pos) and self.team_count > 1:
                         self.team_count -= 1
@@ -218,6 +256,34 @@ class TeamSetupScreen:
             
             pygame.display.flip()
             clock.tick(30)
+    def select_csv_file(self):
+        """Open file dialog to select CSV"""
+        root = Tk()
+        root.withdraw()  # Hide the main window
+        file_path = filedialog.askopenfilename(
+            title="Select Questions CSV",
+            filetypes=[("CSV Files", "*.csv"), ("All Files", "*.*")]
+        )
+        if file_path:
+            self.current_csv = os.path.basename(file_path)
+            # Reload questions
+            global q, board_matrix
+            try:
+                load_questions(self.current_csv)
+            except Exception as e:
+                print(f"Error loading CSV: {e}")
+    
+    def edit_csv_file(self):
+        """Open CSV in default editor"""
+        try:
+            if os.name == 'nt':  # Windows
+                os.startfile(self.current_csv)
+            elif os.name == 'posix':  # macOS/Linux
+                subprocess.call(('open', self.current_csv))
+            else:
+                subprocess.call(('xdg-open', self.current_csv))
+        except Exception as e:
+            print(f"Error opening editor: {e}")
 class GameOverScreen:
     def __init__(self):
         self.screen = pygame.display.set_mode((WIDTH, HEIGHT))

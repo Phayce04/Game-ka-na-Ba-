@@ -155,7 +155,7 @@ class TeamSetupScreen:
         self.edit_button = pygame.Rect(WIDTH//2 - 150, HEIGHT - 130, 300, 50)
         self.done_button = pygame.Rect(WIDTH//2 - 100, HEIGHT - 60, 200, 50)
         
-        self.current_csv = 'questions.csv'  # Default CSV file
+        self.current_csv = 'qset4_Book.csv'  # Default CSV file
     def show(self):
         running = True
         input_boxes = []
@@ -274,16 +274,128 @@ class TeamSetupScreen:
                 print(f"Error loading CSV: {e}")
     
     def edit_csv_file(self):
-        """Open CSV in default editor"""
-        try:
-            if os.name == 'nt':  # Windows
-                os.startfile(self.current_csv)
-            elif os.name == 'posix':  # macOS/Linux
-                subprocess.call(('open', self.current_csv))
-            else:
-                subprocess.call(('xdg-open', self.current_csv))
-        except Exception as e:
-            print(f"Error opening editor: {e}")
+        """Open in-game CSV editor"""
+        editor = CSVEditor(self.current_csv)
+        editor.run()
+        # Reload questions after editing
+        load_questions(self.current_csv)
+class CSVEditor:
+    def __init__(self, csv_file):
+        self.screen = pygame.display.set_mode((WIDTH, HEIGHT))
+        self.font = pygame.font.SysFont('Arial', 24)
+        self.csv_file = csv_file
+        self.data = pd.read_csv(csv_file)
+        self.editing_cell = None
+        self.edit_text = ""
+        self.scroll_offset = 0
+        self.cell_width = WIDTH // 6
+        self.cell_height = 40
+        self.selected_row = None
+        self.selected_col = None
+
+    def draw_table(self):
+        # Draw column headers
+        headers = ["Row", "Col", "Category", "Question", "Answer"]
+        for i, header in enumerate(headers):
+            rect = pygame.Rect(i*self.cell_width, 50 - self.scroll_offset, 
+                             self.cell_width, self.cell_height)
+            pygame.draw.rect(self.screen, (200, 200, 200), rect)
+            text = self.font.render(header, True, black)
+            self.screen.blit(text, (rect.x + 5, rect.y + 5))
+
+        # Draw data rows
+        for row_idx in range(len(self.data)):
+            for col_idx, col in enumerate(["Row", "Col", "Categories", "Question", "Answer"]):
+                cell_value = str(self.data.iloc[row_idx][col])
+                rect = pygame.Rect(col_idx*self.cell_width, 
+                                 100 + row_idx*self.cell_height - self.scroll_offset,
+                                 self.cell_width, self.cell_height)
+                
+                # Highlight selected cell
+                if self.selected_row == row_idx and self.selected_col == col_idx:
+                    pygame.draw.rect(self.screen, (100, 200, 255), rect)
+                else:
+                    pygame.draw.rect(self.screen, white, rect, 0)
+                    pygame.draw.rect(self.screen, black, rect, 1)
+                
+                # Display cell text
+                text = self.font.render(cell_value[:20] + "..." if len(cell_value) > 20 else cell_value, 
+                                      True, black)
+                self.screen.blit(text, (rect.x + 5, rect.y + 5))
+
+    def handle_events(self):
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                return False
+            
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                if event.button == 1:  # Left click
+                    x, y = event.pos
+                    col = x // self.cell_width
+                    row = (y + self.scroll_offset - 100) // self.cell_height
+                    
+                    if 0 <= row < len(self.data) and 0 <= col < 5:
+                        self.selected_row = row
+                        self.selected_col = col
+                        self.edit_text = str(self.data.iloc[row][["Row", "Col", "Categories", "Question", "Answer"][col]])
+                
+                elif event.button == 4:  # Scroll up
+                    self.scroll_offset = max(0, self.scroll_offset - 20)
+                elif event.button == 5:  # Scroll down
+                    self.scroll_offset += 20
+            
+            elif event.type == pygame.KEYDOWN:
+                if self.selected_row is not None and self.selected_col is not None:
+                    if event.key == pygame.K_RETURN:
+                        # Save changes
+                        col_name = ["Row", "Col", "Categories", "Question", "Answer"][self.selected_col]
+                        self.data.at[self.selected_row, col_name] = self.edit_text
+                        self.data.to_csv(self.csv_file, index=False)
+                        self.selected_row = None
+                        self.selected_col = None
+                    elif event.key == pygame.K_BACKSPACE:
+                        self.edit_text = self.edit_text[:-1]
+                    else:
+                        self.edit_text += event.unicode
+        
+        return True
+
+    def draw_edit_box(self):
+        if self.selected_row is not None and self.selected_col is not None:
+            edit_rect = pygame.Rect(50, HEIGHT - 100, WIDTH - 100, 50)
+            pygame.draw.rect(self.screen, white, edit_rect)
+            pygame.draw.rect(self.screen, blue, edit_rect, 2)
+            
+            text = self.font.render(f"Editing: {self.edit_text}", True, black)
+            self.screen.blit(text, (edit_rect.x + 10, edit_rect.y + 15))
+
+    def run(self):
+        running = True
+        while running:
+            self.screen.fill(white)
+            running = self.handle_events()
+            
+            # Draw table and controls
+            self.draw_table()
+            self.draw_edit_box()
+            
+            # Draw save button
+            save_btn = pygame.Rect(WIDTH - 150, 10, 140, 40)
+            pygame.draw.rect(self.screen, green, save_btn)
+            save_text = self.font.render("Save & Exit", True, white)
+            self.screen.blit(save_text, (save_btn.x + 20, save_btn.y + 10))
+            
+            # Check save button click
+            mouse_pos = pygame.mouse.get_pos()
+            mouse_click = pygame.mouse.get_pressed()
+            if save_btn.collidepoint(mouse_pos) and mouse_click[0]:
+                self.data.to_csv(self.csv_file, index=False)
+                return True
+            
+            pygame.display.flip()
+            clock.tick(30)
+        
+        return False
 class GameOverScreen:
     def __init__(self):
         self.screen = pygame.display.set_mode((WIDTH, HEIGHT))
@@ -524,7 +636,7 @@ team_setup.show()
 while Running_flag:
     click_count=0
     clock.tick(60)
-    if len(already_selected) == 30:  # 5 categories * 6 questions = 30
+    if len(already_selected) == 10:  # 5 categories * 6 questions = 30
         game_over = GameOverScreen()
         game_over.show()
         continue  

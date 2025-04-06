@@ -19,6 +19,10 @@ from pygame.locals import *
 
 
 pygame.init()
+pygame.mixer.init()
+pygame.mixer.music.load('Tunog/trial.wav')
+pygame.mixer.music.set_volume(0.3)  
+pygame.mixer.music.play(-1) 
 gameDisplay = pygame.display.set_mode((WIDTH, HEIGHT), pygame.FULLSCREEN)
 pygame.display.set_caption('Bilis Sagot')
 clock = pygame.time.Clock()

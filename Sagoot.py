@@ -16,40 +16,31 @@ from utils import board_matrix, q, MAX_TIME_LIMIT, WIDTH, HEIGHT, white, grey, b
 from pygame.locals import *
 
 
-if not pygame.font: print ('Warning, fonts disabled')
-if not pygame.mixer: print ('Warning, sound disabled')
 
 
-load_questions('qset4_Book.csv')  # Default file
+pygame.init()
+gameDisplay = pygame.display.set_mode((WIDTH, HEIGHT), pygame.FULLSCREEN)
+pygame.display.set_caption('Bilis Sagot')
+clock = pygame.time.Clock()
+
 class Player(object):
     def __init__(self):
         self.score = 0
     def set_score(self,score):
         self.score = score
-
-
+# WIDTH, HEIGHT = 1200,600
+load_questions('qset4_Book.csv')  
 p1 = Player()
 show_question_flag=False
 start_flag = False
 team_names = []
 team_scores = []
 already_selected = []
+if not pygame.font: print ('Warning, fonts disabled')
+if not pygame.mixer: print ('Warning, sound disabled')
 
 
-pygame.init()
-gameDisplay = pygame.display.set_mode((800,600))
-pygame.display.set_caption('Jeoprady by Pharzan')
-clock = pygame.time.Clock()
 
-white = (255,255,255)
-grey = (160,160,160)
-black = (0,0,0)
-blue = (0,0,255)
-red = (255,0,0)
-green = (0,255,0)
-yellow = (255,255,0)
-
-# WIDTH, HEIGHT = 1200,600
 
 class GameOverScreen:
     def __init__(self):
@@ -268,99 +259,103 @@ team_setup = TeamSetupScreen()
 team_names, team_scores = team_setup.show()
 #fix tile errors here, di napipindot yung top row
 while Running_flag:
-    click_count=0
+    click_count = 0
     clock.tick(60)
+    
     if len(already_selected) == 10:  # 5 categories * 6 questions = 30
         game_over = GameOverScreen()
         game_over.show()
         continue  
+    
     while not question_time:
         r, c = 0 , 0
         if not grid_drawn_flag:
             pane1.draw_grid()
             for i in range(6):
                 for j in range(6):
-                    pane1.addText((i,j),board_matrix[j][i])
-            grid_drawn_flag=True
+                    pane1.addText((i,j), board_matrix[j][i])
+            grid_drawn_flag = True
 
         for each_already_selected in already_selected:
-            # print(each_already_selected[0],each_already_selected[1])
-            pane1.clear_already_selected(each_already_selected[0],each_already_selected[1])
+            pane1.clear_already_selected(each_already_selected[0], each_already_selected[1])
+        
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 sys.exit()
                 print("Quit")
+            
             if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                 if team_selected:
                     print('Board Time')
                     for col in range(7): 
-                        if(col*(WIDTH/6)<event.pos[0]<(col+1)*(WIDTH/6)):
-                            # print('col',col)
+                        if col * (WIDTH / 6) < event.pos[0] < (col + 1) * (WIDTH / 6):
                             c = col
                             for row in range(6):
-                                if(row*(HEIGHT/6)<event.pos[1]<(row+1)*(HEIGHT/6)):
-                                    r = row+1
-                                    print('Clicked on:',r,c,'SCORE:',board_matrix[r][c])
+                                if row * (HEIGHT / 6) < event.pos[1] < (row + 1) * (HEIGHT / 6):
+                                    r = row + 1
+                                    print('Clicked on:', r, c, 'SCORE:', board_matrix[r][c])
                                     show_question_flag = True
-                                    if (r,c) not in already_selected:
-                                        already_selected.append((r,c))
-                                        current_selected = [r,c]
+                                    if (r, c) not in already_selected:
+                                        already_selected.append((r, c))
+                                        current_selected = [r, c]
                                         question_time = True
                                     else:
-                                        print('already selected')
+                                        print('Already selected')
                 else:
                     print('First select a team')
                     for col in range(6):
-                        if(col*(WIDTH/6)<event.pos[0]<(col+1)*(WIDTH/6) and event.pos[1]>600):
-                            # answering_team = teams[col]
-                            print('Selected Team:',col, 'Selected Team Name:',team_names[col],'score',team_scores[col])
+                        # Prevent clicking on invalid or empty teams (i.e., columns without teams)
+                        if col < len(team_names) and col * (WIDTH / 6) < event.pos[0] < (col + 1) * (WIDTH / 6) and event.pos[1] > 600:
+                            print('Selected Team:', col, 'Selected Team Name:', team_names[col], 'score', team_scores[col])
                             selected_team_index = col
                             pane1.show_selected_box()
                             team_selected = True
+                        else:
+                            print("Clicked on empty spot, no team here!")
 
             if event.type == pygame.QUIT:
                 crashed = True
-            # print(event)
+                
         pygame.display.update()
         clock.tick(60)
 
-    while question_time:      
+    while question_time:
         grid_drawn_flag = False
         if show_timer_flag:
             timer.show()
         if show_question_flag:
-            print("Current Selected",current_selected)
+            print("Current Selected", current_selected)
             timer.start()
             try:
-                question=q[current_selected[0],current_selected[1]]['question']
-                print("Question:",q[current_selected[0],current_selected[1]]['question'])
+                question = q[current_selected[0], current_selected[1]]['question']
+                print("Question:", q[current_selected[0], current_selected[1]]['question'])
             except:
                 print('No Question Found For Position')
             question_screen.show(question)
             show_question_flag = False
             show_timer_flag = True
+        
         for event in pygame.event.get():
             if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-                if event.pos[1]<600:
-                    if event.pos[0]>500 and event.pos[0]<700 and show_timer_flag: 
+                if event.pos[1] < 600:
+                    if event.pos[0] > 500 and event.pos[0] < 700 and show_timer_flag:
                         print('Timer')
                         timer.start()
                         break
-                    click_count+=1
-                    # question_screen.show_answer()
-                    print(q[r,c]['answer'])
-                    question_screen.show_answer(q[r,c]['answer'])
+                    click_count += 1
+                    print(q[r, c]['answer'])
+                    question_screen.show_answer(q[r, c]['answer'])
                     show_timer_flag = False
-                    print("Selected Question",c,r,"Points:",board_matrix[c][r],'Click Count:',click_count)
+                    print("Selected Question", c, r, "Points:", board_matrix[c][r], 'Click Count:', click_count)
                     print("Question Time")
-                    if click_count==2:
-                        if (event.pos[0]>(WIDTH/6) and event.pos[0]<2*(WIDTH/6)):
-                            print ("RIGHTTTTT")
-                            team_scores[selected_team_index] = team_scores[selected_team_index]+board_matrix[r][c]
-                        elif (event.pos[0]>4*(WIDTH/6) and event.pos[0]<5*(WIDTH/6)):
+                    if click_count == 2:
+                        if event.pos[0] > (WIDTH / 6) and event.pos[0] < 2 * (WIDTH / 6):
+                            print("RIGHTTTTT")
+                            team_scores[selected_team_index] = team_scores[selected_team_index] + board_matrix[r][c]
+                        elif event.pos[0] > 4 * (WIDTH / 6) and event.pos[0] < 5 * (WIDTH / 6):
                             print('WRONGGGG!')
-                            team_scores[selected_team_index] = team_scores[selected_team_index]-board_matrix[r][c]
-                        print('Second Click:',event.pos[0],event.pos[1])
+                            team_scores[selected_team_index] = team_scores[selected_team_index] - board_matrix[r][c]
+                        print('Second Click:', event.pos[0], event.pos[1])
                         team_selected = False
                         question_time = False
                         pane1.draw_grid_flag = True
@@ -368,16 +363,14 @@ while Running_flag:
                 else:
                     print('NEW TEAM SELECT MODE!')
                     for col in range(6):
-                        if(col*(WIDTH/6)<event.pos[0]<(col+1)*(WIDTH/6) and event.pos[1]>600):
-                            # answering_team = teams[col]
-                            print('New Selected Team:',col, 'Selected Team Name:',team_names[col],
-                                  'score',team_scores[col],
-                                  'Previous selected team score',team_scores[selected_team_index],
-                                  'Score:',board_matrix[r][c])
-                            team_scores[selected_team_index]=team_scores[selected_team_index]-board_matrix[r][c]
-                            selected_team_index = col
-                            pane1.show_score()
-                            pane1.show_selected_box()
-                            timer.start()
+                        if col * (WIDTH / 6) < event.pos[0] < (col + 1) * (WIDTH / 6) and event.pos[1] > 600:
+                            if col < len(team_names):  # Ensure this is a valid team index
+                                print('New Selected Team:', col, 'Selected Team Name:', team_names[col], 'score', team_scores[col])
+                                team_scores[selected_team_index] = team_scores[selected_team_index] - board_matrix[r][c]
+                                selected_team_index = col
+                                pane1.show_score()
+                                pane1.show_selected_box()
+                                timer.start()
+        
         pygame.display.update()
         clock.tick(60)

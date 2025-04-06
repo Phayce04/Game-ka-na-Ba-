@@ -1,4 +1,6 @@
 import pygame
+import sys
+
 board_matrix=[
               ["First","Second","Third","Fourth","Fifth","Sixth"],
               [200,200,200,200,200,200],
@@ -9,8 +11,10 @@ board_matrix=[
               ]
 q={}
 MAX_TIME_LIMIT = 60
-WIDTH, HEIGHT = 1200,800
 
+pygame.init()
+info = pygame.display.Info()
+WIDTH, HEIGHT = info.current_w, info.current_h
 white = (255,255,255)
 grey = (160,160,160)
 black = (0,0,0)

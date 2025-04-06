@@ -1,16 +1,8 @@
 import pygame
 import os, sys
 
-white = (255,255,255)
-grey = (160,160,160)
-black = (0,0,0)
-blue = (0,0,255)
-red = (255,0,0)
-green = (0,255,0)
-yellow = (255,255,0)
-clock = pygame.time.Clock()
+from utils import board_matrix, q, MAX_TIME_LIMIT, WIDTH, HEIGHT, white, grey, black, blue, red, green, yellow, clock
 
-WIDTH, HEIGHT = 1200,800
 class TutorialScreen:
     def __init__(self):
         self.screen = pygame.display.set_mode((WIDTH, HEIGHT))

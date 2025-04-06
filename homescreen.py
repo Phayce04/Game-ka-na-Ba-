@@ -1,7 +1,8 @@
 import pygame
 import os, sys
 from sparkle import SparkleParticle 
-WIDTH, HEIGHT = 1200,800
+from utils import board_matrix, q, MAX_TIME_LIMIT, WIDTH, HEIGHT, white, grey, black, blue, red, green, yellow, clock
+
 class HomeScreen:
     def __init__(self):
         self.screen = pygame.display.set_mode((WIDTH, HEIGHT))

@@ -1,19 +1,11 @@
 import pygame
 import os, sys
 import pandas as pd
-white = (255,255,255)
-grey = (160,160,160)
-black = (0,0,0)
-blue = (0,0,255)
-red = (255,0,0)
-green = (0,255,0)
-yellow = (255,255,0)
-clock = pygame.time.Clock()
-WIDTH, HEIGHT = 1200,800
+
 from csveditor import CSVEditor
 from tkinter import filedialog, Tk
 from loadquestion import load_questions
-from utils import board_matrix, q, MAX_TIME_LIMIT, WIDTH, HEIGHT
+from utils import board_matrix, q, MAX_TIME_LIMIT, WIDTH, HEIGHT, white, grey, black, blue, red, green, yellow, clock
 
 
 class TeamSetupScreen:

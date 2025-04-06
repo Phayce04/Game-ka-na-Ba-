@@ -65,12 +65,7 @@ team_names = []
 team_scores = []
 already_selected = []
 
-# for i in range(team_number):
-#     name=input("Team Name: ")
-#     team_names.append(name)
-#     team_scores.append(0)
 
-# print(team_names)
 pygame.init()
 gameDisplay = pygame.display.set_mode((800,600))
 pygame.display.set_caption('Jeoprady by Pharzan')

@@ -32,38 +32,87 @@ class HomeScreen:
     def draw_stage_light(self, frame_count):
         spotlight = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
 
-        # Fixed spotlight origin at top center
-        top_center = (WIDTH // 2, 0)
+        # Beam settings
+        beam_length = HEIGHT * 0.95
+        beam_width = 400
+        sway_amplitude = 60
+        sway_speed = 0.05
 
-        # Beam parameters
-        beam_height = HEIGHT // 1.5
-        base_half_width = 200  # Half of beam's base width
-        sway_amplitude = 100
-        sway_speed = 0.02
+        # Define spotlights: farther apart, center moved upward
+        lights = [
+            {
+                "top": (WIDTH // 2, -100),               # Top-center (off screen)
+                "base_x": WIDTH // 2,
+                "base_y": HEIGHT * 0.82,
+                "offset": 0
+            },
+            {
+                "top": (-80, 0),                         # Far top-left
+                "base_x": WIDTH // 2 - 180,
+                "base_y": HEIGHT * 0.88,
+                "offset": math.pi / 2
+            },
+            {
+                "top": (WIDTH + 80, 0),                  # Far top-right
+                "base_x": WIDTH // 2 + 180,
+                "base_y": HEIGHT * 0.88,
+                "offset": math.pi
+            }
+        ]
 
-        # Calculate sway offset for beam rotation at the bottom
-        sway = math.sin(frame_count * sway_speed) * sway_amplitude
+        for light in lights:
+            top_x, top_y = light["top"]
+            base_x = light["base_x"]
+            base_y = light["base_y"]
 
-        # Bottom corners pivoting around the fixed top
-        bottom_left = (top_center[0] - base_half_width + sway, beam_height)
-        bottom_right = (top_center[0] + base_half_width + sway, beam_height)
+            # Sway the base left/right
+            sway = math.sin(frame_count * sway_speed + light["offset"]) * sway_amplitude
+            base_x += sway
 
-        # Draw the main light triangle (white with soft alpha)
-        base_color = (255, 255, 255, 90)
-        pygame.draw.polygon(spotlight, base_color, [top_center, bottom_left, bottom_right])
+            # Calculate beam corners
+            left_x = base_x - beam_width // 2
+            right_x = base_x + beam_width // 2
+            bottom_y = base_y
 
-        # Optional soft layers for glow
-        for i in range(5):
-            fade = 90 - i * 12
-            offset = i * 8
-            points = [
-                (top_center[0], top_center[1] + offset),
-                (bottom_left[0] + offset, bottom_left[1]),
-                (bottom_right[0] - offset, bottom_right[1])
-            ]
-            pygame.draw.polygon(spotlight, (255, 255, 255, fade), points)
+            # Draw beam triangle
+            main_color = (255, 255, 255, 90)
+            pygame.draw.polygon(
+                spotlight, main_color,
+                [(top_x, top_y), (left_x, bottom_y), (right_x, bottom_y)]
+            )
+
+            # Optional gradient glow
+            for i in range(5):
+                alpha = 90 - i * 12
+                offset = i * 8
+                pygame.draw.polygon(
+                    spotlight,
+                    (255, 255, 255, alpha),
+                    [
+                        (top_x, top_y + offset),
+                        (left_x + offset, bottom_y),
+                        (right_x - offset, bottom_y)
+                    ]
+                )
+
+            # ✅ Round off the beam bottom using a translucent ellipse
+            ellipse_width = beam_width * 1.1
+            ellipse_height = 60  # Flatter ellipse for smoother blend
+            ellipse_surface = pygame.Surface((ellipse_width, ellipse_height), pygame.SRCALPHA)
+            pygame.draw.ellipse(
+                ellipse_surface,
+                (255, 255, 255, 50),
+                (0, 0, ellipse_width, ellipse_height)
+            )
+
+            # Center ellipse at beam base
+            spotlight.blit(
+                ellipse_surface,
+                (base_x - ellipse_width // 2, bottom_y - ellipse_height // 2)
+            )
 
         self.screen.blit(spotlight, (0, 0))
+
 
     def show(self):
         running = True

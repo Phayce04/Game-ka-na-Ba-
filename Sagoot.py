@@ -312,17 +312,7 @@ while True:
         pygame.display.update()
         
         # Wait for click to proceed to team setup
-        waiting = True
-        while waiting:
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    pygame.quit()
-                    sys.exit()
-                if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-                    if exit_button_rect.collidepoint(event.pos):
-                        pygame.quit()
-                        sys.exit()
-                    waiting = False
+
         game_state = "TEAM_SETUP"
     
     elif game_state == "TEAM_SETUP":
@@ -331,21 +321,7 @@ while True:
         pygame.display.update()
         
         # Wait for click to proceed to main game
-        waiting = True
-        while waiting:
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    pygame.quit()
-                    sys.exit()
-                if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-                    if exit_button_rect.collidepoint(event.pos):
-                        pygame.quit()
-                        sys.exit()
-                    if restart_button_rect.collidepoint(event.pos):
-                        GameOverScreen().reset_game()
-                        waiting = False
-                        break
-                    waiting = False
+       
         game_state = "MAIN_GAME"
     
     elif game_state == "MAIN_GAME":

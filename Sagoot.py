@@ -19,6 +19,8 @@ from pygame.locals import *
 
 
 pygame.init()
+answered_img = pygame.image.load("Larawan/trial.png")
+answered_img = pygame.transform.scale(answered_img, (WIDTH // 6, 100))
 pygame.mixer.init()
 pygame.mixer.music.load('Tunog/trial.wav')
 pygame.mixer.music.set_volume(0.3)  
@@ -126,7 +128,6 @@ class GameOverScreen:
         tutorial.show()
 class Pane(object):
     def __init__(self):
-        pygame.init()
         self.font = pygame.font.SysFont('Arial', 18)
         pygame.display.set_caption('Box Test')
         self.screen = pygame.display.set_mode((WIDTH,HEIGHT), 0, 32)
@@ -155,8 +156,9 @@ class Pane(object):
                 # pygame.display.update()
         pygame.display.update()
 
-    def clear_already_selected(self,col,row):
-        pygame.draw.rect(self.screen, (black), (row*(WIDTH/6), col*100, WIDTH/6, 100))
+    def clear_already_selected(self, col, row):
+        self.screen.blit(answered_img, (row*(WIDTH//6), col*100))
+
         
     def show_score(self):
         curser=10
@@ -185,7 +187,6 @@ class Pane(object):
         
 class Question(object):
     def __init__(self):
-        pygame.init()
         self.font = pygame.font.SysFont('Open Sans', 32)
         pygame.display.set_caption('Box Test')
         self.screen = pygame.display.set_mode((WIDTH,HEIGHT+200), 0, 32)
@@ -213,7 +214,6 @@ class Question(object):
 
 class Timer(object):
     def __init__(self):
-        pygame.init()
         self.screen = pygame.display.set_mode((WIDTH,800), 0, 32)
         self.font = pygame.font.SysFont('Arial', 32)
         self.timer_x_pos=(WIDTH/2)-(WIDTH/12)

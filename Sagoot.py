@@ -207,28 +207,43 @@ class Question(object):
     def show(self, q):
         self.screen.blit(self.question_bg, (0, 0))
 
-        # Define margins and max width
-        left_margin = 100
-        right_margin = 100
-        max_width = WIDTH - left_margin - right_margin
+        # Set margins and calculate available width
+        margin = 250
+        max_width = WIDTH - 2 * margin
+        line_height = self.font.get_linesize()
+        text_y = HEIGHT // 2 - 50  # Starting Y position
 
-        # Handle text that's too long by adding ellipsis
-        sizeX, sizeY = self.font.size(q)
-        if sizeX > max_width:
-            # Calculate how many characters fit (approximate)
-            avg_char_width = self.font.size(' ')[0]  # Using space as average char width
-            max_chars = int(max_width / avg_char_width) - 3  # Leave room for ellipsis
-            q = q[:max_chars] + '...'
-            sizeX, sizeY = self.font.size(q)  # Update size after truncation
+        # Split text into words
+        words = q.split(' ')
+        lines = []
+        current_line = []
 
-        # Calculate centered position within the margins
-        text_x = left_margin + (max_width - sizeX) / 2
-        text_y = HEIGHT / 2 - 50  
+        for word in words:
+            # Test if adding this word would exceed the width
+            test_line = ' '.join(current_line + [word])
+            test_width = self.font.size(test_line)[0]
+            
+            if test_width <= max_width:
+                current_line.append(word)
+            else:
+                # If current line isn't empty, finalize it
+                if current_line:
+                    lines.append(' '.join(current_line))
+                # Start new line with current word
+                current_line = [word]
+        
+        # Add the last line
+        if current_line:
+            lines.append(' '.join(current_line))
 
-        # Draw question text
-        self.screen.blit(self.font.render(q, True, (255, 255, 255)), (text_x, text_y))
+        # Render each line centered
+        for line in lines:
+            text_surface = self.font.render(line, True, (255, 255, 255))
+            text_width = text_surface.get_width()
+            text_x = margin + (max_width - text_width) // 2
+            self.screen.blit(text_surface, (text_x, text_y))
+            text_y += line_height  # Move down for next line
 
-        # Update display
         pygame.display.update()
     def show_answer(self, text):
         # Draw answer background (different from question)

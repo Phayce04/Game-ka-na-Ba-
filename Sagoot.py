@@ -301,17 +301,7 @@ while True:
         pygame.display.update()
         
         # Wait for click to proceed to tutorial
-        waiting = True
-        while waiting:
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    pygame.quit()
-                    sys.exit()
-                if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-                    if exit_button_rect.collidepoint(event.pos):
-                        pygame.quit()
-                        sys.exit()
-                    waiting = False
+       
         game_state = "TUTORIAL"
     
     elif game_state == "TUTORIAL":

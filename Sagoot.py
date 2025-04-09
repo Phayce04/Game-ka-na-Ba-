@@ -211,8 +211,22 @@ class Pane(object):
                 # pygame.display.update()
         pygame.display.update()
 
+<<<<<<< Updated upstream
     def clear_already_selected(self, col, row):
         self.screen.blit(answered_img, (row*(WIDTH//6), col*100))
+=======
+    def clear_already_selected(self, row, col):
+        """Marks a cell as 'answered' by covering it with an image."""
+        rect = pygame.Rect(
+            col * self.cell_width,
+            (row + 1) * self.cell_height,  # +1 to skip header row
+            self.cell_width,
+            self.cell_height
+        )
+        # Scale the "answered" image to fit the cell
+        scaled_img = pygame.transform.scale(answered_img, (self.cell_width, self.cell_height))
+        self.screen.blit(scaled_img, rect)
+>>>>>>> Stashed changes
 
         
     def show_score(self):
@@ -226,6 +240,7 @@ class Pane(object):
             self.screen.blit(self.font.render(str(score), True, (255,0,0)), (curser, 640))
             curser+=WIDTH/6
     def show_selected_box(self):
+<<<<<<< Updated upstream
         self.show_score()
         self.rect = pygame.draw.rect(self.screen, (red), (selected_team_index*(WIDTH/6),600 , WIDTH/6, 100),3)
         self.rect = pygame.draw.rect(self.screen, (red), (selected_team_index*(WIDTH/6),700 , WIDTH/6, 100))
@@ -234,6 +249,24 @@ class Pane(object):
         # print(pos,text)
         x = pos[0]*WIDTH/6+10
         y= 100*pos[1]+35
+=======
+        """Highlights the currently selected team at the bottom."""
+        if 0 <= selected_team_index < len(team_names):
+            highlight_rect = pygame.Rect(
+                selected_team_index * self.cell_width,
+                HEIGHT - 100,
+                self.cell_width,
+                100
+            )
+            pygame.draw.rect(self.screen, red, highlight_rect, 3)  # Highlight border
+
+    def addText(self, pos, text):
+        """Adds text to a grid cell."""
+        col, row = pos
+        x = col * self.cell_width + 10
+        y = (row + 1) * self.cell_height + 35  # +1 to skip header row
+
+>>>>>>> Stashed changes
         color = red
         # print('Y',y)
         if y<100:
@@ -515,6 +548,7 @@ while True:
                         pygame.quit()
                         sys.exit()
 
+<<<<<<< Updated upstream
                     if team_selected:
 
                         # 1. Highlight clicked cell
@@ -557,6 +591,35 @@ while True:
                                 team_selected = True
                             else:
                                 print("Clicked on empty spot, no team here!")
+=======
+                # Grid selection (main board)
+                col = mouse_x // pane1.cell_width
+                row = (mouse_y // pane1.cell_height) - 1  # Adjust for header row
+
+                if 0 <= col < 6 and 0 <= row < 5:  # Validate grid bounds
+                    if (row, col) not in already_selected:
+                        # Store the selected position as a tuple
+                        current_selected = (row, col)
+                        already_selected.append(current_selected)
+                        
+                        # Visual feedback
+                        click_sound = pygame.mixer.Sound('Tunog/click.mp3')
+                        click_sound.play()
+                        
+                        highlight_rect = pygame.Rect(
+                            col * pane1.cell_width,
+                            (row + 1) * pane1.cell_height,
+                            pane1.cell_width,
+                            pane1.cell_height
+                        )
+                        pygame.draw.rect(pane1.screen, (255, 215, 0), highlight_rect, 5)
+                        pygame.display.update()
+                        pygame.time.delay(150)
+
+                        # Move to question state
+                        question_time = True
+                        show_question_flag = True
+>>>>>>> Stashed changes
 
             pygame.display.update()
             clock.tick(60)
@@ -588,19 +651,34 @@ while True:
 
                     if event.pos[1] > 200:
                         click_count += 1
+<<<<<<< Updated upstream
                         print(q[r, c]['answer'])
                         question_screen.show_answer(q[r, c]['answer'])
                         show_timer_flag = False
                         print("Selected Question", c, r, "Points:", board_matrix[c][r], 'Click Count:', click_count)
+=======
+                        row, col = current_selected  # Unpack the stored position
+                        question_screen.show_answer(q[row, col]['answer'])
+                        show_timer_flag = False
+                        row, col = current_selected  # Use the stored position
+                        print(f"Selected Question {col},{row} Points: {board_matrix[row][col]} Click Count: {click_count}")
+>>>>>>> Stashed changes
                         print("Question Time")
                         if click_count == 2:
                             # You can now remove the X-boundary checks here
                             if event.pos[0] > (WIDTH / 6) and event.pos[0] < 2 * (WIDTH / 6):
                                 print("RIGHTTTTT")
+<<<<<<< Updated upstream
                                 team_scores[selected_team_index] += board_matrix[r][c]
                             elif event.pos[0] > 4 * (WIDTH / 6) and event.pos[0] < 5 * (WIDTH / 6):
                                 print('WRONGGGG!')
                                 team_scores[selected_team_index] -= board_matrix[r][c]
+=======
+                                team_scores[selected_team_index] += board_matrix[row][col]
+                            elif event.pos[0] > 4 * (WIDTH / 6) and event.pos[0] < 5 * (WIDTH / 6):
+                                print('WRONGGGG!')
+                                team_scores[selected_team_index] -= board_matrix[row][col]
+>>>>>>> Stashed changes
                             print('Second Click:', event.pos[0], event.pos[1])
                             team_selected = False
                             question_time = False
@@ -611,6 +689,10 @@ while True:
 
             pygame.display.update()
             clock.tick(60)
+<<<<<<< Updated upstream
+=======
+    
+>>>>>>> Stashed changes
 
     elif game_state == "GAME_OVER":
         # Show game results first

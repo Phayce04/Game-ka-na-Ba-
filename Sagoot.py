@@ -205,33 +205,69 @@ class Question(object):
         pygame.display.update()
 
     def show(self, q):
-        # Draw question background
         self.screen.blit(self.question_bg, (0, 0))
 
-        # Draw question text
-        sizeX, sizeY = self.font.size(q)
-        if sizeX > WIDTH:
-            print("TEXT TOO LONG!!!")
-        
-        print('SHOW QUESTION:', r, c)
-        self.screen.blit(self.font.render(q, True, (255, 255, 255)), 
-                        (WIDTH / 2 - (sizeX / 2), HEIGHT / 2-50))
-        pygame.display.update()
+        # Define margins and max width
+        left_margin = 100
+        right_margin = 100
+        max_width = WIDTH - left_margin - right_margin
 
+        # Handle text that's too long by adding ellipsis
+        sizeX, sizeY = self.font.size(q)
+        if sizeX > max_width:
+            # Calculate how many characters fit (approximate)
+            avg_char_width = self.font.size(' ')[0]  # Using space as average char width
+            max_chars = int(max_width / avg_char_width) - 3  # Leave room for ellipsis
+            q = q[:max_chars] + '...'
+            sizeX, sizeY = self.font.size(q)  # Update size after truncation
+
+        # Calculate centered position within the margins
+        text_x = left_margin + (max_width - sizeX) / 2
+        text_y = HEIGHT / 2 - 50  
+
+        # Draw question text
+        self.screen.blit(self.font.render(q, True, (255, 255, 255)), (text_x, text_y))
+
+        # Update display
+        pygame.display.update()
     def show_answer(self, text):
         # Draw answer background (different from question)
         self.screen.blit(self.answer_bg, (0, 0))
 
-        # Show answer text
+        # Calculate size of the text
         sizeX, sizeY = self.font.size(text)
-        self.screen.blit(self.font.render(str(text), True, (255, 255, 255)), 
-                        (WIDTH / 2 - (sizeX / 2), HEIGHT / 2))
 
-        # Draw answer buttons
-        self.rect = pygame.draw.rect(self.screen, (green), ((WIDTH / 6), 500, WIDTH / 6, 100))
-        self.rect = pygame.draw.rect(self.screen, (red), (4 * (WIDTH / 6), 500, WIDTH / 6, 100))
-        self.rect = pygame.draw.rect(self.screen, (grey), ((WIDTH / 2) - (WIDTH / (18 * 2)), 500, WIDTH / 18, 100))
+        # Limit text width to 80% of screen and center it within that area
+        max_width = WIDTH * 0.8
+        text_x = (WIDTH * 0.1) + (max_width / 2) - (sizeX / 2)  # Center text within 80% of screen width
+
+        # Move text a bit higher
+        text_y = HEIGHT / 3 +50  # Move it higher by changing the Y position
+
+        # Show the text with the updated position
+        self.screen.blit(self.font.render(str(text), True, (255, 255, 255)), (text_x, text_y))
+
+        # Circle parameters
+        radius = 75  # Increased radius for bigger circles
+        y_pos = 520  # Lower position for buttons
+
+        # Create transparent surfaces for each button
+        green_circle = pygame.Surface((radius * 2, radius * 2), pygame.SRCALPHA)
+        red_circle = pygame.Surface((radius * 2, radius * 2), pygame.SRCALPHA)
+        grey_circle = pygame.Surface((radius * 2, radius * 2), pygame.SRCALPHA)
+
+        # Draw translucent circles with alpha = 100
+        pygame.draw.circle(green_circle, (0, 255, 0, 0), (radius, radius), radius)
+        pygame.draw.circle(red_circle, (255, 0, 0, 0), (radius, radius), radius)
+        pygame.draw.circle(grey_circle, (128, 128, 128, 0), (radius, radius), radius)
+
+        # Blit circles to the screen with adjusted positions
+        self.screen.blit(green_circle, (WIDTH / 6 + 150 - radius, y_pos))  # Move green circle to the right
+        self.screen.blit(red_circle, (4 * (WIDTH / 6) + 120 - radius, y_pos))  # Move red circle to the right
+        self.screen.blit(grey_circle, ((WIDTH / 2 - 20) - radius, y_pos))
+
         pygame.display.update()
+
 class Timer(object):
     def __init__(self):
         self.screen = pygame.display.set_mode((WIDTH, 800), 0, 32)
@@ -341,7 +377,7 @@ while True:
             sys.exit()
 
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-            # Check for exit button click
+            # Check for exit button click   
             if exit_button_rect.collidepoint(event.pos):
                 pygame.quit()
                 sys.exit()
@@ -491,17 +527,7 @@ while True:
                             question_time = False
                             pane1.draw_grid_flag = True
                             click_count = 0
-                    else:
-                        print('NEW TEAM SELECT MODE!')
-                        for col in range(6):
-                            if col * (WIDTH / 6) < event.pos[0] < (col + 1) * (WIDTH / 6) and event.pos[1] > 600:
-                                if col < len(team_names):
-                                    print('New Selected Team:', col, 'Selected Team Name:', team_names[col], 'score', team_scores[col])
-                                    team_scores[selected_team_index] = team_scores[selected_team_index] - board_matrix[r][c]
-                                    selected_team_index = col
-                                    pane1.show_score()
-                                    pane1.show_selected_box()
-                                    timer.start()
+                   
 
             pygame.display.update()
             clock.tick(60)

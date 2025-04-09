@@ -23,7 +23,7 @@ answered_img = pygame.image.load("Larawan/parangpiattos.png")
 answered_img = pygame.transform.scale(answered_img, (WIDTH // 6, 100))
 pygame.mixer.init()
 pygame.mixer.music.load('Tunog/bgm.wav')
-pygame.mixer.music.set_volume(0.2)  
+pygame.mixer.music.set_volume(1.0)  
 pygame.mixer.music.play(-1) 
 gameDisplay = pygame.display.set_mode((WIDTH, HEIGHT), pygame.FULLSCREEN)
 pygame.display.set_caption('Bilis Sagot')
@@ -49,10 +49,8 @@ class GameOverScreen:
     def show(self, team_names, team_scores):
         # Play Game Over music
         pygame.mixer.music.stop()
-
-        pygame.mixer.music.load('Tunog/bgm.wav')  # Game Over / Menu BGM
-        pygame.mixer.music.set_volume(0.2)
-
+        pygame.mixer.music.load('Tunog/bgm.wav')
+        pygame.mixer.music.set_volume(1.0)
         pygame.mixer.music.play(-1)
 
         # Determine winning team(s)
@@ -483,11 +481,11 @@ while True:
         if game_state == "MAIN_GAME" and not main_game_music_playing:
             pygame.mixer.music.stop()
             pygame.mixer.music.load('Tunog/trial.wav')  # Change to your game music
-            pygame.mixer.music.set_volume(0.2)
+            pygame.mixer.music.set_volume(1.0)
             pygame.mixer.music.play(-1)
             main_game_music_playing = True
 
-        if len(already_selected) == 30:  # 5 categories * 6 questions = 30
+        if len(already_selected) == 3:  # 5 categories * 6 questions = 30
             game_state = "GAME_OVER"
             continue  
 
@@ -516,30 +514,14 @@ while True:
                         sys.exit()
 
                     if team_selected:
-
-                        # 1. Highlight clicked cell
-                        highlight_rect = pygame.Rect(c * (WIDTH // 6), (r - 1) * 100, WIDTH // 6, 100)
-                        pygame.draw.rect(pane1.screen, (255, 215, 0), highlight_rect, 5)  # Gold border
-                        pygame.display.update()
-
-                        # 2. Play click sound
-                        click_sound = pygame.mixer.Sound('Tunog/click.mp3') 
-                        
-                        click_sound.play()
-
-                        # 3. Optional: mark the card as used
-                        pygame.time.delay(150)  # Pause for effect
-                        pane1.screen.fill(white, highlight_rect)  # Clear the card
-                        pane1.addText((c, r - 1), "✔️")  # Put a checkmark or symbol
-                        pygame.display.update()
                         print('Board Time')
-                        for col in range(6): 
+                        for col in range(7): 
                             if col * (WIDTH / 6) < event.pos[0] < (col + 1) * (WIDTH / 6):
                                 c = col
                                 for row in range(6):
                                     if row * (HEIGHT / 6) < event.pos[1] < (row + 1) * (HEIGHT / 6):
                                         r = row + 1
-                                        print('Clicked on:', r, c, 'SCORE:', board_matrix[c][r])
+                                        print('Clicked on:', r, c, 'SCORE:', board_matrix[r][c])
                                         show_question_flag = True
                                         if (r, c) not in already_selected:
                                             already_selected.append((r, c))

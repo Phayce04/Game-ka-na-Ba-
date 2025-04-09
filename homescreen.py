@@ -40,12 +40,7 @@ class HomeScreen:
 
         # Define spotlights: farther apart, center moved upward
         lights = [
-            {
-                "top": (WIDTH // 2, -100),               # Top-center (off screen)
-                "base_x": WIDTH // 2,
-                "base_y": HEIGHT * 0.82,
-                "offset": 0
-            },
+           
             {
                 "top": (-80, 0),                         # Far top-left
                 "base_x": WIDTH // 2 - 180,

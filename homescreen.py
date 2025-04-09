@@ -74,44 +74,31 @@ class HomeScreen:
             right_x = base_x + beam_width // 2
             bottom_y = base_y
 
-            # Draw beam triangle
+            # Draw beam triangle (without any fading for now)
             main_color = (255, 255, 255, 90)
             pygame.draw.polygon(
                 spotlight, main_color,
                 [(top_x, top_y), (left_x, bottom_y), (right_x, bottom_y)]
             )
 
-            # Optional gradient glow
+            # Apply fading at the bottom end (fading out towards the end, opposite the pivot)
             for i in range(5):
-                alpha = 90 - i * 12
+                alpha = 90 - i * 15  # Fade out from the pivot towards the base
                 offset = i * 8
+
+                # Fade the end of the beam (opposite the pivot)
                 pygame.draw.polygon(
                     spotlight,
-                    (255, 255, 255, alpha),
+                    (255, 255, 255, max(0, alpha)),
                     [
-                        (top_x, top_y + offset),
-                        (left_x + offset, bottom_y),
-                        (right_x - offset, bottom_y)
+                        (top_x, top_y + offset),  # Keep the pivot bright
+                        (left_x + offset, bottom_y),  # Fade towards the bottom-left
+                        (right_x - offset, bottom_y)  # Fade towards the bottom-right
                     ]
                 )
 
-            # ✅ Round off the beam bottom using a translucent ellipse
-            ellipse_width = beam_width * 1.1
-            ellipse_height = 60  # Flatter ellipse for smoother blend
-            ellipse_surface = pygame.Surface((ellipse_width, ellipse_height), pygame.SRCALPHA)
-            pygame.draw.ellipse(
-                ellipse_surface,
-                (255, 255, 255, 50),
-                (0, 0, ellipse_width, ellipse_height)
-            )
-
-            # Center ellipse at beam base
-            spotlight.blit(
-                ellipse_surface,
-                (base_x - ellipse_width // 2, bottom_y - ellipse_height // 2)
-            )
-
         self.screen.blit(spotlight, (0, 0))
+
 
 
     def show(self):

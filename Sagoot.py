@@ -19,11 +19,11 @@ from pygame.locals import *
 
 
 pygame.init()
-answered_img = pygame.image.load("Larawan/trial.png")
+answered_img = pygame.image.load("Larawan/parangpiattos.png")
 answered_img = pygame.transform.scale(answered_img, (WIDTH // 6, 100))
 pygame.mixer.init()
-pygame.mixer.music.load('Tunog/trial.wav')
-pygame.mixer.music.set_volume(0.3)  
+pygame.mixer.music.load('Tunog/bgm.wav')
+pygame.mixer.music.set_volume(1.0)  
 pygame.mixer.music.play(-1) 
 gameDisplay = pygame.display.set_mode((WIDTH, HEIGHT), pygame.FULLSCREEN)
 pygame.display.set_caption('Bilis Sagot')
@@ -101,7 +101,14 @@ class GameOverScreen:
         global p1, show_question_flag, start_flag, team_names, team_scores, already_selected
         global current_selected, team_selected, question_time, grid_drawn_flag
         global selected_team_index, show_timer_flag, Running_flag, game_state
-        
+
+        # Reset music to original BGM
+        pygame.mixer.music.stop()
+        pygame.mixer.music.load('Tunog/bgm.wav')  # <- Your original background music file
+        pygame.mixer.music.set_volume(1.0)
+        pygame.mixer.music.play(-1)
+
+        # Game reset logic
         load_questions('qset4_Book.csv')  
         p1 = Player()
         show_question_flag = False
@@ -109,7 +116,7 @@ class GameOverScreen:
         team_names = []
         team_scores = []
         already_selected = []
-        current_selected = [0,0]
+        current_selected = [0, 0]
         team_selected = False
         question_time = False
         grid_drawn_flag = False
@@ -117,6 +124,7 @@ class GameOverScreen:
         show_timer_flag = False
         Running_flag = True
         game_state = "HOME"
+
 
 # Initial game setup
 GameOverScreen().reset_game()
@@ -267,7 +275,7 @@ selected_team_index=-1
 show_timer_flag = False
 Running_flag = True
 game_state = "HOME"
-
+main_game_music_playing = False 
 while True:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
@@ -326,7 +334,13 @@ while True:
     
     elif game_state == "MAIN_GAME":
         click_count = 0
-        
+        if game_state == "MAIN_GAME" and not main_game_music_playing:
+            pygame.mixer.music.stop()
+            pygame.mixer.music.load('Tunog/trial.wav')  # Change to your game music
+            pygame.mixer.music.set_volume(1.0)
+            pygame.mixer.music.play(-1)
+            main_game_music_playing = True
+
         if len(already_selected) == 10:  # 5 categories * 6 questions = 30
             game_state = "GAME_OVER"
             continue  

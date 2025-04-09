@@ -9,7 +9,7 @@ class TutorialScreen:
         self.font = pygame.font.SysFont('Arial', 36)
         try:
             # Replace 'tutorial.jpg' with your actual image file
-            self.tutorial_image = pygame.image.load('tutorial.jpg')
+            self.tutorial_image = pygame.image.load('Larawan/TUTORIAL.png')
             self.tutorial_image = pygame.transform.scale(self.tutorial_image, (WIDTH, HEIGHT))
         except:
             # Fallback if image doesn't load

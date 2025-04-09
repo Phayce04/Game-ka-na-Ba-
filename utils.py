@@ -10,7 +10,7 @@ board_matrix=[
               [1000,1000,1000,1000,1000,1000]
               ]
 q={}
-MAX_TIME_LIMIT = 60
+MAX_TIME_LIMIT = 10
 
 pygame.init()
 info = pygame.display.Info()

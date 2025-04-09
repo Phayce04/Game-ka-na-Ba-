@@ -40,73 +40,74 @@ if not pygame.font: print ('Warning, fonts disabled')
 if not pygame.mixer: print ('Warning, sound disabled')
 
 
-
-
 class GameOverScreen:
     def __init__(self):
         self.screen = pygame.display.set_mode((WIDTH, HEIGHT))
         self.font_large = pygame.font.SysFont('Arial', 72)
         self.font_medium = pygame.font.SysFont('Arial', 48)
         self.font_small = pygame.font.SysFont('Arial', 36)
-        
+
     def show(self):
+        global team_scores, team_names
+
+        # Play Game Over music once
+        pygame.mixer.music.stop()
+        pygame.mixer.music.load('Tunog/bgm.wav')  # Game Over / Menu BGM
+        pygame.mixer.music.set_volume(1.0)
+        pygame.mixer.music.play(-1)
+
         # Determine winning team(s)
         max_score = max(team_scores)
         winners = [i for i, score in enumerate(team_scores) if score == max_score]
-        
+
         running = True
         while running:
             self.screen.fill(black)
-            
+            draw_restart_button(pygame.display.get_surface())
+
             # Game Over title
             title = self.font_large.render("GAME OVER", True, yellow)
             self.screen.blit(title, (WIDTH//2 - title.get_width()//2, 100))
-            
+
             # Display winner(s)
             if len(winners) == 1:
                 winner_text = self.font_medium.render(f"Winner: {team_names[winners[0]]}!", True, green)
             else:
-                # Handle tie
                 winner_names = " & ".join([team_names[i] for i in winners])
                 winner_text = self.font_medium.render(f"It's a tie! Winners: {winner_names}", True, green)
-            
+
             self.screen.blit(winner_text, (WIDTH//2 - winner_text.get_width()//2, 250))
-            
+
             # Display all scores
             score_title = self.font_medium.render("Final Scores:", True, white)
             self.screen.blit(score_title, (WIDTH//2 - score_title.get_width()//2, 350))
-            
+
             for i, (name, score) in enumerate(zip(team_names, team_scores)):
                 score_text = self.font_small.render(f"{name}: {score}", True, white)
                 self.screen.blit(score_text, (WIDTH//2 - score_text.get_width()//2, 420 + i*50))
-            
-            # Continue prompt
+
+            # Continue prompt (blinking)
             continue_text = self.font_small.render("Click to return to home screen", True, yellow)
-            if pygame.time.get_ticks() % 1000 < 500:  # Blinking effect
-                self.screen.blit(continue_text, (WIDTH//2 - continue_text.get_width()//2, HEIGHT-100))
-            
+            if pygame.time.get_ticks() % 1000 < 500:
+                self.screen.blit(continue_text, (WIDTH//2 - continue_text.get_width()//2, HEIGHT - 100))
+
             pygame.display.flip()
-            
+
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     pygame.quit()
                     sys.exit()
-                if event.type == pygame.MOUSEBUTTONDOWN:
+                elif event.type == pygame.MOUSEBUTTONDOWN:
                     running = False
                     self.reset_game()
-            
+
             clock.tick(30)
-    
+
     def reset_game(self):
         global p1, show_question_flag, start_flag, team_names, team_scores, already_selected
         global current_selected, team_selected, question_time, grid_drawn_flag
         global selected_team_index, show_timer_flag, Running_flag, game_state
-
-        # Reset music to original BGM
-        pygame.mixer.music.stop()
-        pygame.mixer.music.load('Tunog/bgm.wav')  # <- Your original background music file
-        pygame.mixer.music.set_volume(1.0)
-        pygame.mixer.music.play(-1)
+        global main_game_music_playing  # Reset music switch flag
 
         # Game reset logic
         load_questions('qset4_Book.csv')  
@@ -125,9 +126,9 @@ class GameOverScreen:
         Running_flag = True
         game_state = "HOME"
 
+        # Reset the music switch flag so main game BGM plays when re-entered
+        main_game_music_playing = False
 
-# Initial game setup
-GameOverScreen().reset_game()
 class Pane(object):
     def __init__(self):
         self.font = pygame.font.SysFont('Arial', 18)
@@ -186,55 +187,112 @@ class Pane(object):
         if y<100:
             color=yellow
         self.screen.blit(self.font.render(str(text), True, color), (x, y))
-        
 class Question(object):
     def __init__(self):
-        self.font = pygame.font.SysFont('Open Sans', 32)
+        # Load custom font
+        self.font = pygame.font.Font("Fonts/bernoru-blackultraexpanded.otf", 32)
+
+        # Load question background image
+        self.question_bg = pygame.image.load("Larawan/cards.png")
+        self.question_bg = pygame.transform.scale(self.question_bg, (WIDTH, HEIGHT))
+
+        # Load answer background image (different from question)
+        self.answer_bg = pygame.image.load("Larawan/answers.png")  # Different image
+        self.answer_bg = pygame.transform.scale(self.answer_bg, (WIDTH, HEIGHT))
+
         pygame.display.set_caption('Box Test')
-        self.screen = pygame.display.set_mode((WIDTH,HEIGHT+200), 0, 32)
-        self.screen.fill((white))
+        self.screen = pygame.display.set_mode((WIDTH, HEIGHT + 200), 0, 32)
         pygame.display.update()
 
-    def show(self,q):
-        # curser=0
-        self.rect = pygame.draw.rect(self.screen, (black), (0, 0, WIDTH, HEIGHT))
+    def show(self, q):
+        # Draw question background
+        self.screen.blit(self.question_bg, (0, 0))
+
+        # Draw question text
         sizeX, sizeY = self.font.size(q)
-        if (sizeX>WIDTH):
-            print("TEXT TOOO LONG!!!")
-        print('SHOW QUESTION:',r,c)
-        self.screen.blit(self.font.render(q, True, (255,0,0)), (WIDTH/2-(sizeX/2), HEIGHT/2))
+        if sizeX > WIDTH:
+            print("TEXT TOO LONG!!!")
+        
+        print('SHOW QUESTION:', r, c)
+        self.screen.blit(self.font.render(q, True, (255, 255, 255)), 
+                        (WIDTH / 2 - (sizeX / 2), HEIGHT / 2-50))
         pygame.display.update()
 
-    def show_answer(self,text):
-        self.screen.fill((black))
+    def show_answer(self, text):
+        # Draw answer background (different from question)
+        self.screen.blit(self.answer_bg, (0, 0))
+
+        # Show answer text
         sizeX, sizeY = self.font.size(text)
-        self.screen.blit(self.font.render(str(text), True, (255,0,0)), (WIDTH/2-(sizeX/2), HEIGHT/2))
-        self.rect = pygame.draw.rect(self.screen, (green), ((WIDTH/6), 500, WIDTH/6, 100))
-        self.rect = pygame.draw.rect(self.screen, (red), (4*(WIDTH/6), 500, WIDTH/6, 100))
-        self.rect = pygame.draw.rect(self.screen, (grey), ((WIDTH/2)-(WIDTH/(18*2)), 500, WIDTH/18, 100))
-        pygame.display.update()
+        self.screen.blit(self.font.render(str(text), True, (255, 255, 255)), 
+                        (WIDTH / 2 - (sizeX / 2), HEIGHT / 2))
 
+        # Draw answer buttons
+        self.rect = pygame.draw.rect(self.screen, (green), ((WIDTH / 6), 500, WIDTH / 6, 100))
+        self.rect = pygame.draw.rect(self.screen, (red), (4 * (WIDTH / 6), 500, WIDTH / 6, 100))
+        self.rect = pygame.draw.rect(self.screen, (grey), ((WIDTH / 2) - (WIDTH / (18 * 2)), 500, WIDTH / 18, 100))
+        pygame.display.update()
 class Timer(object):
     def __init__(self):
-        self.screen = pygame.display.set_mode((WIDTH,800), 0, 32)
-        self.font = pygame.font.SysFont('Arial', 32)
-        self.timer_x_pos=(WIDTH/2)-(WIDTH/12)
-        self.timer_y_pos=WIDTH/6
-        self.counter=0
-        self.startTime=0
-        self.elapsed=0
+        self.screen = pygame.display.set_mode((WIDTH, 800), 0, 32)
+        self.font = pygame.font.Font("Fonts/bernoru-blackultraexpanded.otf", 32)  # Custom font
+        self.timer_x_pos = (WIDTH / 2) - (WIDTH / 12)
+        self.timer_y_pos = 650  # Lower position
+        self.counter = 0
+        self.startTime = 0
+        self.elapsed = 0
+        self.time_expired = False
+        self.buzzer_played = False
+        self.timer_width = WIDTH / 6
+        self.timer_height = 100
+        
+        # Create a semi-transparent surface for the background
+        self.timer_bg = pygame.Surface((self.timer_width, self.timer_height), pygame.SRCALPHA)
+        self.timer_bg.fill((0, 0, 255, 0))  # Blue with 50% transparency (128/255)
 
     def start(self):
+        """Start or restart the timer"""
         self.startTime = time.perf_counter()
+        self.time_expired = False
+        self.buzzer_played = False
 
     def show(self):
-        self.elapsed = round(time.perf_counter()-self.startTime,1)
-        self.rect = pygame.draw.rect(self.screen, (blue), (self.timer_x_pos, 500, self.timer_y_pos, 100))
-        self.screen.blit(self.font.render(str(self.elapsed), True, (255,255,0)), (self.timer_x_pos+25,550))
-        if self.elapsed >= MAX_TIME_LIMIT:
-            pygame.mixer.music.load('Tunog/buzzer2.wav')
-            pygame.mixer.music.play()
-            timer.start()
+        """Display the timer with a larger dark blue circle positioned lower on the screen"""
+        self.elapsed = round(time.perf_counter() - self.startTime, 1)
+
+        # Adjust vertical position
+        self.timer_y_pos = 667  # Move lower (adjust to taste)
+
+        # Set larger circle radius
+        circle_radius = 70
+
+        # Calculate circle center
+        circle_center = (
+            int(self.timer_x_pos + self.timer_width / 2),
+            int(self.timer_y_pos + self.timer_height / 2)
+        )
+
+        # Draw dark blue circle
+        pygame.draw.circle(self.screen, (0, 0, 139), circle_center, circle_radius)
+
+        # Render yellow timer text
+        timer_text = self.font.render(str(self.elapsed), True, (255, 255, 0))
+        text_rect = timer_text.get_rect(center=circle_center)
+        self.screen.blit(timer_text, text_rect)
+
+        # Time expiration logic
+        if self.elapsed >= MAX_TIME_LIMIT and not self.time_expired:
+            self.time_expired = True
+            if not self.buzzer_played:
+                pygame.mixer.music.load('Tunog/buzzer2.wav')
+                pygame.mixer.music.play()
+                self.buzzer_played = True
+            print("Time's up!")
+
+
+
+
+# Button positions (unchanged)
 exit_button_rect = pygame.Rect(WIDTH - 60, 10, 50, 30)
 restart_button_rect = pygame.Rect(WIDTH // 2 - 60, HEIGHT // 2 + 60, 120, 40)
 
@@ -281,47 +339,43 @@ while True:
         if event.type == pygame.QUIT:
             pygame.quit()
             sys.exit()
-        
+
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
             # Check for exit button click
             if exit_button_rect.collidepoint(event.pos):
                 pygame.quit()
                 sys.exit()
-            
+
             # Check for restart button click (only visible on certain screens)
             if game_state in ["GAME_OVER", "TEAM_SETUP"] and restart_button_rect.collidepoint(event.pos):
                 GameOverScreen().reset_game()
                 continue
-    
+
     # State machine for different game screens
     if game_state == "HOME":
         home_screen = HomeScreen()
         home_screen.show()
-        
         pygame.display.update()
-        
+
         # Wait for click to proceed to tutorial
-       
         game_state = "TUTORIAL"
-    
+
     elif game_state == "TUTORIAL":
         tutorial = TutorialScreen()
         tutorial.show()
         pygame.display.update()
-        
-        # Wait for click to proceed to team setup
 
+        # Wait for click to proceed to team setup
         game_state = "TEAM_SETUP"
-    
+
     elif game_state == "TEAM_SETUP":
         team_setup = TeamSetupScreen()
         team_names, team_scores = team_setup.show()
         pygame.display.update()
-        
+
         # Wait for click to proceed to main game
-       
         game_state = "MAIN_GAME"
-    
+
     elif game_state == "MAIN_GAME":
         click_count = 0
         if game_state == "MAIN_GAME" and not main_game_music_playing:
@@ -331,34 +385,34 @@ while True:
             pygame.mixer.music.play(-1)
             main_game_music_playing = True
 
-        if len(already_selected) == 10:  # 5 categories * 6 questions = 30
+        if len(already_selected) == 3:  # 5 categories * 6 questions = 30
             game_state = "GAME_OVER"
             continue  
-        
+
         while not question_time:
             r, c = 0, 0
             if not grid_drawn_flag:
                 pane1.draw_grid()
                 for i in range(6):
                     for j in range(6):
-                        pane1.addText((i,j), board_matrix[j][i])
+                        pane1.addText((i, j), board_matrix[j][i])
                 grid_drawn_flag = True
 
             for each_already_selected in already_selected:
                 pane1.clear_already_selected(each_already_selected[0], each_already_selected[1])
             
             draw_exit_button(pygame.display.get_surface())
-            
+
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     pygame.quit()
                     sys.exit()
-                
+
                 if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                     if exit_button_rect.collidepoint(event.pos):
                         pygame.quit()
                         sys.exit()
-                    
+
                     if team_selected:
                         print('Board Time')
                         for col in range(7): 
@@ -391,11 +445,12 @@ while True:
 
         while question_time:
             grid_drawn_flag = False
-            if show_timer_flag:
-                timer.show()
+            if show_timer_flag and not timer.time_expired:
+                timer.show()  # Show timer only if it hasn't expired yet
+
             if show_question_flag:
                 print("Current Selected", current_selected)
-                timer.start()
+                timer.start()  # Start the timer only when the question is displayed
                 try:
                     question = q[current_selected[0], current_selected[1]]['question']
                     print("Question:", q[current_selected[0], current_selected[1]]['question'])
@@ -404,19 +459,19 @@ while True:
                 question_screen.show(question)
                 show_question_flag = False
                 show_timer_flag = True
-            
+
             draw_exit_button(pygame.display.get_surface())
-            
+
             for event in pygame.event.get():
                 if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                     if exit_button_rect.collidepoint(event.pos):
                         pygame.quit()
                         sys.exit()
-                    
+
                     if event.pos[1] < 600:
                         if event.pos[0] > 500 and event.pos[0] < 700 and show_timer_flag:
                             print('Timer')
-                            timer.start()
+                            timer.start()  # Start the timer when clicked
                             break
                         click_count += 1
                         print(q[r, c]['answer'])
@@ -447,30 +502,13 @@ while True:
                                     pane1.show_score()
                                     pane1.show_selected_box()
                                     timer.start()
-            
+
             pygame.display.update()
             clock.tick(60)
-    
+
     elif game_state == "GAME_OVER":
         game_over = GameOverScreen()
         game_over.show()
         draw_exit_button(pygame.display.get_surface())
-        draw_restart_button(pygame.display.get_surface())
         pygame.display.update()
-        
         # Wait for click to either restart or exit
-        waiting = True
-        while waiting:
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    pygame.quit()
-                    sys.exit()
-                if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-                    if exit_button_rect.collidepoint(event.pos):
-                        pygame.quit()
-                        sys.exit()
-                    if restart_button_rect.collidepoint(event.pos):
-                        GameOverScreen().reset_game()
-                        waiting = False
-                        break
-                    waiting = False

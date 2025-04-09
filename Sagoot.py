@@ -152,7 +152,7 @@ class QuitScreen:
         team_names = []
         team_scores = []
         already_selected = []
-        current_selected = [0, 0]
+        current_selected = (0, 0)  # Now a tuple
         team_selected = False
         question_time = False
         grid_drawn_flag = False
@@ -184,60 +184,78 @@ class Button:
 class Pane(object):
     def __init__(self):
         self.font = pygame.font.SysFont('Arial', 18)
-        pygame.display.set_caption('Box Test')
-        self.screen = pygame.display.set_mode((WIDTH,HEIGHT), 0, 32)
-        self.screen.fill((white))
-        self.draw_grid_flag=True
+        pygame.display.set_caption('Bilis Sagot')
+        self.screen = pygame.display.set_mode((WIDTH, HEIGHT))
+        self.screen.fill(white)
+        self.draw_grid_flag = True
+        self.cell_width = WIDTH // 6  # Fixed cell width (integer division)
+        self.cell_height = 100       # Fixed cell height
         pygame.display.update()
-
 
     def draw_grid(self):
         if self.draw_grid_flag:
-            self.screen.fill((white))    
-            self.rect = pygame.draw.rect(self.screen, (blue), (0, 0, WIDTH, 100))
-            self.draw_grid_flag=False
+            self.screen.fill(white)
+            # Draw header (top bar)
+            pygame.draw.rect(self.screen, blue, (0, 0, WIDTH, self.cell_height))
+            self.draw_grid_flag = False
             self.show_score()
             self.show_selected_box()
-        # pygame.display.update()
 
-        cell_pos=WIDTH/6
-
-
-        for row in range(6):
-            cell_pos=WIDTH/6
-            for x,header in enumerate(range(6)):
-                self.rect = pygame.draw.rect(self.screen, (black), (0, row*100, cell_pos, 100),2)
-                cell_pos+=WIDTH/6
-                # pygame.display.update()
+        # Draw grid lines
+        for row in range(6):  # 6 rows (including header)
+            for col in range(6):  # 6 columns
+                rect = pygame.Rect(
+                    col * self.cell_width,
+                    row * self.cell_height,
+                    self.cell_width,
+                    self.cell_height
+                )
+                pygame.draw.rect(self.screen, black, rect, 2)  # Grid borders
         pygame.display.update()
 
-    def clear_already_selected(self, col, row):
-        self.screen.blit(answered_img, (row*(WIDTH//6), col*100))
+    def clear_already_selected(self, row, col):
+        """Marks a cell as 'answered' by covering it with an image."""
+        rect = pygame.Rect(
+            col * self.cell_width,
+            row * self.cell_height,  # REMOVED THE +1 HERE
+            self.cell_width,
+            self.cell_height
+        )
+        # Scale the "answered" image to fit the cell
+        scaled_img = pygame.transform.scale(answered_img, (self.cell_width, self.cell_height))
+        self.screen.blit(scaled_img, rect)
 
-        
     def show_score(self):
-        curser=10
-        self.rect = pygame.draw.rect(self.screen, (grey), (0,600 , WIDTH, 100))
-        for team in team_names:
-            self.screen.blit(self.font.render(team, True, (255,0,0)), (curser, 610))
-            curser+=WIDTH/6
-        curser=10
-        for score in team_scores:
-            self.screen.blit(self.font.render(str(score), True, (255,0,0)), (curser, 640))
-            curser+=WIDTH/6
+        """Displays team names and scores at the bottom."""
+        score_panel_height = 100
+        pygame.draw.rect(self.screen, grey, (0, HEIGHT - score_panel_height, WIDTH, score_panel_height))
+
+        # Display team names and scores
+        for i, (name, score) in enumerate(zip(team_names, team_scores)):
+            x_pos = i * self.cell_width + 10
+            self.screen.blit(self.font.render(name, True, red), (x_pos, HEIGHT - 90))
+            self.screen.blit(self.font.render(str(score), True, red), (x_pos, HEIGHT - 60))
+
     def show_selected_box(self):
-        self.show_score()
-        self.rect = pygame.draw.rect(self.screen, (red), (selected_team_index*(WIDTH/6),600 , WIDTH/6, 100),3)
-        self.rect = pygame.draw.rect(self.screen, (red), (selected_team_index*(WIDTH/6),700 , WIDTH/6, 100))
-        
-    def addText(self,pos,text):
-        # print(pos,text)
-        x = pos[0]*WIDTH/6+10
-        y= 100*pos[1]+35
+        """Highlights the currently selected team at the bottom."""
+        if 0 <= selected_team_index < len(team_names):
+            highlight_rect = pygame.Rect(
+                selected_team_index * self.cell_width,
+                HEIGHT - 100,
+                self.cell_width,
+                100
+            )
+            pygame.draw.rect(self.screen, red, highlight_rect, 3)  # Highlight border
+
+    def addText(self, pos, text):
+        """Adds text to a grid cell."""
+        col, row = pos
+        x = col * self.cell_width + 10
+        y = row * self.cell_height + 35
+
         color = red
-        # print('Y',y)
-        if y<100:
-            color=yellow
+        if row == 0:  # Header row (categories)
+            color = yellow
         self.screen.blit(self.font.render(str(text), True, color), (x, y))
 class Question(object):
     def __init__(self):
@@ -424,7 +442,7 @@ start_flag = False
 team_names = []
 team_scores = []
 already_selected = []
-current_selected=[0,0]
+current_selected = (0, 0)  # Now a tuple
 team_selected = False
 question_time = False
 pane1= Pane()
@@ -491,72 +509,84 @@ while True:
             game_state = "GAME_OVER"
             continue  
 
-        while not question_time:
-            r, c = 0, 0
-            if not grid_drawn_flag:
-                pane1.draw_grid()
-                for i in range(6):
-                    for j in range(6):
-                        pane1.addText((i, j), board_matrix[j][i])
-                grid_drawn_flag = True
+        elif game_state == "MAIN_GAME":
+            click_count = 0
+        if game_state == "MAIN_GAME" and not main_game_music_playing:
+            pygame.mixer.music.stop()
+            pygame.mixer.music.load('Tunog/trial.wav')
+            pygame.mixer.music.set_volume(0.2)
+            pygame.mixer.music.play(-1)
+            main_game_music_playing = True
 
-            for each_already_selected in already_selected:
-                pane1.clear_already_selected(each_already_selected[0], each_already_selected[1])
-            
-            draw_exit_button(pygame.display.get_surface())
+        if len(already_selected) == 30:
+            game_state = "GAME_OVER"
+            continue  
 
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT:
+        # Draw grid if needed
+        if not grid_drawn_flag:
+            pane1.draw_grid()
+            for i in range(6):
+                for j in range(6):
+                    pane1.addText((i, j), board_matrix[j][i])
+            grid_drawn_flag = True
+
+        # Mark answered questions
+        for row, col in already_selected:
+            pane1.clear_already_selected(row, col)
+        
+        draw_exit_button(pygame.display.get_surface())
+
+        # Handle events
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+
+            if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                mouse_x, mouse_y = event.pos
+
+                # Exit button check
+                if exit_button_rect.collidepoint(event.pos):
                     pygame.quit()
                     sys.exit()
 
-                if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-                    if exit_button_rect.collidepoint(event.pos):
-                        pygame.quit()
-                        sys.exit()
+                # Team selection (bottom panel)
+                if mouse_y >= HEIGHT - 100:
+                    team_index = mouse_x // pane1.cell_width
+                    if team_index < len(team_names):
+                        selected_team_index = team_index
+                        team_selected = True
+                        pane1.show_selected_box()
 
-                    if team_selected:
+                # Grid selection (main board)
+                # Grid selection (main board)
+                col = mouse_x // pane1.cell_width
+                row = mouse_y // pane1.cell_height  # Get raw row position (0-5)
 
-                        # 1. Highlight clicked cell
-                        highlight_rect = pygame.Rect(c * (WIDTH // 6), (r - 1) * 100, WIDTH // 6, 100)
-                        pygame.draw.rect(pane1.screen, (255, 215, 0), highlight_rect, 5)  # Gold border
-                        pygame.display.update()
+                if 0 <= col < 6 and 0 <= row < 6:  # Check bounds (6 columns, 6 rows)
+                    if row > 0:  # Skip header row (row 0)
+                        if (row-1, col) not in already_selected:  # Store as 0-4 for questions
+                            # Store the selected position
+                            current_selected = (row-1, col)
+                            already_selected.append(current_selected)
+                            
+                            # Visual feedback
+                            click_sound = pygame.mixer.Sound('Tunog/click.mp3')
+                            click_sound.play()
+                            
+                            highlight_rect = pygame.Rect(
+                                col * pane1.cell_width,
+                                row * pane1.cell_height,  # Use pane1 instead of self
+                                pane1.cell_width,
+                                pane1.cell_height
+                            )
+                            pygame.draw.rect(pane1.screen, (255, 215, 0), highlight_rect, 5)
+                            pygame.display.update()
+                            pygame.time.delay(150)
 
-                        # 2. Play click sound
-                        click_sound = pygame.mixer.Sound('Tunog/click.mp3') 
-                        
-                        click_sound.play()
-
-                        # 3. Optional: mark the card as used
-                        pygame.time.delay(150)  # Pause for effect
-                        pane1.screen.fill(white, highlight_rect)  # Clear the card
-                        pane1.addText((c, r - 1), "✔️")  # Put a checkmark or symbol
-                        pygame.display.update()
-                        print('Board Time')
-                        for col in range(6): 
-                            if col * (WIDTH / 6) < event.pos[0] < (col + 1) * (WIDTH / 6):
-                                c = col
-                                for row in range(6):
-                                    if row * (HEIGHT / 6) < event.pos[1] < (row + 1) * (HEIGHT / 6):
-                                        r = row + 1
-                                        print('Clicked on:', r, c, 'SCORE:', board_matrix[c][r])
-                                        show_question_flag = True
-                                        if (r, c) not in already_selected:
-                                            already_selected.append((r, c))
-                                            current_selected = [r, c]
-                                            question_time = True
-                                        else:
-                                            print('Already selected')
-                    else:
-                        print('First select a team')
-                        for col in range(6):
-                            if col < len(team_names) and col * (WIDTH / 6) < event.pos[0] < (col + 1) * (WIDTH / 6) and event.pos[1] > 600:
-                                print('Selected Team:', col, 'Selected Team Name:', team_names[col], 'score', team_scores[col])
-                                selected_team_index = col
-                                pane1.show_selected_box()
-                                team_selected = True
-                            else:
-                                print("Clicked on empty spot, no team here!")
+                            # Move to question state
+                            question_time = True
+                            show_question_flag = True
 
             pygame.display.update()
             clock.tick(60)
@@ -570,10 +600,13 @@ while True:
                 print("Current Selected", current_selected)
                 timer.start()  # Start the timer only when the question is displayed
                 try:
-                    question = q[current_selected[0], current_selected[1]]['question']
-                    print("Question:", q[current_selected[0], current_selected[1]]['question'])
-                except:
-                    print('No Question Found For Position')
+                    # Get question using stored coordinates
+                    row, col = current_selected
+                    question = q[row, col]['question']
+                    print(f"Question: {question} (Position: {row},{col})")
+                except KeyError:
+                    print(f'No question found at position {current_selected}')
+                    question = "Question not available"
                 question_screen.show(question)
                 show_question_flag = False
                 show_timer_flag = True
@@ -581,36 +614,48 @@ while True:
             draw_exit_button(pygame.display.get_surface())
 
             for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    pygame.quit()
+                    sys.exit()
+
                 if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                     if exit_button_rect.collidepoint(event.pos):
                         pygame.quit()
                         sys.exit()
 
-                    if event.pos[1] > 200:
+                    if event.pos[1] > 200:  # Below header area
                         click_count += 1
-                        print(q[r, c]['answer'])
-                        question_screen.show_answer(q[r, c]['answer'])
-                        show_timer_flag = False
-                        print("Selected Question", c, r, "Points:", board_matrix[c][r], 'Click Count:', click_count)
-                        print("Question Time")
-                        if click_count == 2:
-                            # You can now remove the X-boundary checks here
-                            if event.pos[0] > (WIDTH / 6) and event.pos[0] < 2 * (WIDTH / 6):
-                                print("RIGHTTTTT")
-                                team_scores[selected_team_index] += board_matrix[r][c]
-                            elif event.pos[0] > 4 * (WIDTH / 6) and event.pos[0] < 5 * (WIDTH / 6):
-                                print('WRONGGGG!')
-                                team_scores[selected_team_index] -= board_matrix[r][c]
-                            print('Second Click:', event.pos[0], event.pos[1])
+                        row, col = current_selected  # Get stored grid position
+                        
+                        # Show answer on first click
+                        if click_count == 1:
+                            question_screen.show_answer(q[row, col]['answer'])
+                            show_timer_flag = False
+                            print(f"Selected Question {col},{row} Points: {board_matrix[row][col]}")
+                        
+                        # Handle scoring on second click
+                        elif click_count == 2:
+                            # Correct answer (left button)
+                            if WIDTH/6 < event.pos[0] < 2*WIDTH/6:
+                                print("CORRECT ANSWER")
+                                team_scores[selected_team_index] += board_matrix[row][col]
+                            
+                            # Wrong answer (right button)
+                            elif 4*WIDTH/6 < event.pos[0] < 5*WIDTH/6:
+                                print("WRONG ANSWER")
+                                team_scores[selected_team_index] -= board_matrix[row][col]
+                            
+                            print(f'Team {team_names[selected_team_index]} score: {team_scores[selected_team_index]}')
+                            
+                            # Reset for next question
                             team_selected = False
                             question_time = False
                             pane1.draw_grid_flag = True
                             click_count = 0
 
-                   
-
-            pygame.display.update()
-            clock.tick(60)
+                    pygame.display.update()
+                    clock.tick(60)
+                
 
     elif game_state == "GAME_OVER":
         # Show game results first

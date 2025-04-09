@@ -99,7 +99,7 @@ class TeamSetupScreen:
                     # Check team count buttons
                     if minus_button.collidepoint(event.pos) and self.team_count > 1:
                         self.team_count -= 1
-                    elif plus_button.collidepoint(event.pos) and self.team_count < 6:
+                    elif plus_button.collidepoint(event.pos) and self.team_count < 4:
                         self.team_count += 1
                     
                     # Check input boxes

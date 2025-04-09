@@ -39,7 +39,6 @@ class Player(object):
 if not pygame.font: print ('Warning, fonts disabled')
 if not pygame.mixer: print ('Warning, sound disabled')
 
-
 class GameOverScreen:
     def __init__(self):
         self.screen = pygame.display.set_mode((WIDTH, HEIGHT))
@@ -47,12 +46,10 @@ class GameOverScreen:
         self.font_medium = pygame.font.SysFont('Arial', 48)
         self.font_small = pygame.font.SysFont('Arial', 36)
 
-    def show(self):
-        global team_scores, team_names
-
-        # Play Game Over music once
+    def show(self, team_names, team_scores):
+        # Play Game Over music
         pygame.mixer.music.stop()
-        pygame.mixer.music.load('Tunog/bgm.wav')  # Game Over / Menu BGM
+        pygame.mixer.music.load('Tunog/bgm.wav')
         pygame.mixer.music.set_volume(1.0)
         pygame.mixer.music.play(-1)
 
@@ -63,7 +60,6 @@ class GameOverScreen:
         running = True
         while running:
             self.screen.fill(black)
-            draw_restart_button(pygame.display.get_surface())
 
             # Game Over title
             title = self.font_large.render("GAME OVER", True, yellow)
@@ -75,7 +71,6 @@ class GameOverScreen:
             else:
                 winner_names = " & ".join([team_names[i] for i in winners])
                 winner_text = self.font_medium.render(f"It's a tie! Winners: {winner_names}", True, green)
-
             self.screen.blit(winner_text, (WIDTH//2 - winner_text.get_width()//2, 250))
 
             # Display all scores
@@ -87,7 +82,7 @@ class GameOverScreen:
                 self.screen.blit(score_text, (WIDTH//2 - score_text.get_width()//2, 420 + i*50))
 
             # Continue prompt (blinking)
-            continue_text = self.font_small.render("Click to return to home screen", True, yellow)
+            continue_text = self.font_small.render("Click to continue", True, yellow)
             if pygame.time.get_ticks() % 1000 < 500:
                 self.screen.blit(continue_text, (WIDTH//2 - continue_text.get_width()//2, HEIGHT - 100))
 
@@ -99,17 +94,55 @@ class GameOverScreen:
                     sys.exit()
                 elif event.type == pygame.MOUSEBUTTONDOWN:
                     running = False
-                    self.reset_game()
+
+            clock.tick(30)
+
+
+class QuitScreen:
+    def __init__(self):
+        self.screen = pygame.display.set_mode((WIDTH, HEIGHT))
+        self.font_medium = pygame.font.SysFont('Arial', 48)
+        self.restart_button = Button(WIDTH//2 - 150, HEIGHT//2 - 50, 300, 100, "Restart Game", green)
+        self.quit_button = Button(WIDTH//2 - 150, HEIGHT//2 + 100, 300, 100, "Quit Game", red)
+
+    def show(self):
+        running = True
+        while running:
+            self.screen.fill(black)
+            
+            # Screen title
+            title = self.font_medium.render("Game Over", True, yellow)
+            self.screen.blit(title, (WIDTH//2 - title.get_width()//2, 100))
+            
+            # Draw buttons
+            self.restart_button.draw(self.screen)
+            self.quit_button.draw(self.screen)
+
+            pygame.display.flip()
+
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    pygame.quit()
+                    sys.exit()
+                
+                if event.type == pygame.MOUSEBUTTONDOWN:
+                    if self.restart_button.is_clicked(event.pos):
+                        self.reset_game()
+                        return "restart"
+                    elif self.quit_button.is_clicked(event.pos):
+                        pygame.quit()
+                        sys.exit()
 
             clock.tick(30)
 
     def reset_game(self):
+        """Resets all game variables to their initial state"""
         global p1, show_question_flag, start_flag, team_names, team_scores, already_selected
         global current_selected, team_selected, question_time, grid_drawn_flag
         global selected_team_index, show_timer_flag, Running_flag, game_state
-        global main_game_music_playing  # Reset music switch flag
+        global main_game_music_playing
 
-        # Game reset logic
+        # Reset game variables
         load_questions('qset4_Book.csv')  
         p1 = Player()
         show_question_flag = False
@@ -125,10 +158,27 @@ class GameOverScreen:
         show_timer_flag = False
         Running_flag = True
         game_state = "HOME"
-
-        # Reset the music switch flag so main game BGM plays when re-entered
         main_game_music_playing = False
 
+
+class Button:
+    def __init__(self, x, y, width, height, text, color):
+        self.rect = pygame.Rect(x, y, width, height)
+        self.text = text
+        self.color = color
+        self.font = pygame.font.SysFont('Arial', 36)
+        
+    def draw(self, surface):
+        pygame.draw.rect(surface, self.color, self.rect)
+        pygame.draw.rect(surface, black, self.rect, 2)
+        
+        text_surface = self.font.render(self.text, True, black)
+        text_rect = text_surface.get_rect(center=self.rect.center)
+        surface.blit(text_surface, text_rect)
+        
+    def is_clicked(self, pos):
+        return self.rect.collidepoint(pos)
+    
 class Pane(object):
     def __init__(self):
         self.font = pygame.font.SysFont('Arial', 18)
@@ -276,7 +326,6 @@ class Question(object):
         pygame.draw.circle(red_circle, (255, 0, 0, 0), (radius, radius), radius)
         pygame.draw.circle(grey_circle, (128, 128, 128, 0), (radius, radius), radius)
 
-        # Blit circles to the screen with adjusted positions
         self.screen.blit(green_circle, (WIDTH / 6 + 150 - radius, y_pos))  # Move green circle to the right
         self.screen.blit(red_circle, (4 * (WIDTH / 6) + 120 - radius, y_pos))  # Move red circle to the right
         self.screen.blit(grey_circle, ((WIDTH / 2 - 20) - radius, y_pos))
@@ -519,11 +568,7 @@ while True:
                         pygame.quit()
                         sys.exit()
 
-                    if event.pos[1] < 600:
-                        if event.pos[0] > 500 and event.pos[0] < 700 and show_timer_flag:
-                            print('Timer')
-                            timer.start()  # Start the timer when clicked
-                            break
+                    if event.pos[1] > 200:
                         click_count += 1
                         print(q[r, c]['answer'])
                         question_screen.show_answer(q[r, c]['answer'])
@@ -531,25 +576,37 @@ while True:
                         print("Selected Question", c, r, "Points:", board_matrix[c][r], 'Click Count:', click_count)
                         print("Question Time")
                         if click_count == 2:
+                            # You can now remove the X-boundary checks here
                             if event.pos[0] > (WIDTH / 6) and event.pos[0] < 2 * (WIDTH / 6):
                                 print("RIGHTTTTT")
-                                team_scores[selected_team_index] = team_scores[selected_team_index] + board_matrix[r][c]
+                                team_scores[selected_team_index] += board_matrix[r][c]
                             elif event.pos[0] > 4 * (WIDTH / 6) and event.pos[0] < 5 * (WIDTH / 6):
                                 print('WRONGGGG!')
-                                team_scores[selected_team_index] = team_scores[selected_team_index] - board_matrix[r][c]
+                                team_scores[selected_team_index] -= board_matrix[r][c]
                             print('Second Click:', event.pos[0], event.pos[1])
                             team_selected = False
                             question_time = False
                             pane1.draw_grid_flag = True
                             click_count = 0
+
                    
 
             pygame.display.update()
             clock.tick(60)
 
     elif game_state == "GAME_OVER":
-        game_over = GameOverScreen()
-        game_over.show()
-        draw_exit_button(pygame.display.get_surface())
-        pygame.display.update()
-        # Wait for click to either restart or exit
+        # Show game results first
+        game_over_screen = GameOverScreen()
+        game_over_screen.show(team_names, team_scores)
+        
+        # Then show quit/restart options
+        quit_screen = QuitScreen()
+        action = quit_screen.show()
+        
+        if action == "restart":
+            # Reset game state
+            game_state = "HOME"  # or "GAME" depending on your flow
+            # The reset_game() was already called by QuitScreen
+        else:
+            # Quit was selected (handled within QuitScreen)
+            pass

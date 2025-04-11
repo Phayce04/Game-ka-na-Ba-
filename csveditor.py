@@ -3,7 +3,10 @@ import os, sys
 import pandas as pd
 
 from utils import board_matrix, q, MAX_TIME_LIMIT, WIDTH, HEIGHT, white, grey, black, blue, red, green, yellow, clock
-
+jeopardy_yellow = (238, 202, 62)  # EECA3E
+jeopardy_gold = (184, 134, 11)    # B8860B
+jeopardy_dark_blue = (0, 0, 139)  # Dark blue
+jeopardy_blue = (8, 32, 128)      # A nice Jeopardy blue
 class CSVEditor:
     def __init__(self, csv_file):
         self.screen = pygame.display.set_mode((WIDTH, HEIGHT))
@@ -21,21 +24,31 @@ class CSVEditor:
 
     def draw_table(self):
         headers = ["Row", "Col", "Question", "Answer", "Score"]
+        total_headers = len(headers)
+        stretched_cell_width = WIDTH // total_headers
 
-        # Merged Header for Questions/Answers
-        merged_qa_rect = pygame.Rect(0, 2 * self.cell_height + 5, self.cell_width * 5, self.cell_height)
-        pygame.draw.rect(self.screen, (220, 220, 255), merged_qa_rect)
-        pygame.draw.rect(self.screen, black, merged_qa_rect, 1)
-        text = self.font.render("QUESTIONS / ANSWERS", True, black)
+        # Merged Header for Questions/Answers - dark blue with gold border
+        merged_qa_rect = pygame.Rect(0, 2 * self.cell_height + 5, WIDTH, self.cell_height)
+        pygame.draw.rect(self.screen, jeopardy_dark_blue, merged_qa_rect)
+        pygame.draw.rect(self.screen, jeopardy_gold, merged_qa_rect, 2)
+        text = self.font.render("QUESTIONS / ANSWERS", True, white)
         text_rect = text.get_rect(center=merged_qa_rect.center)
         self.screen.blit(text, text_rect)
 
-        # Header row
+        # Header row - dark blue with gold divisions
         for i, header in enumerate(headers):
-            rect = pygame.Rect(i * self.cell_width, 3 * self.cell_height + 10 - self.scroll_offset,
-                               self.cell_width, self.cell_height)
-            pygame.draw.rect(self.screen, (200, 200, 200), rect)
-            text = self.font.render(header, True, black)
+            rect = pygame.Rect(i * stretched_cell_width, 3 * self.cell_height + 10 - self.scroll_offset,
+                            stretched_cell_width, self.cell_height)
+            # Make Score header yellow, others dark blue
+            if header == "Score":
+                pygame.draw.rect(self.screen, jeopardy_yellow, rect)
+                text_color = black  # Black text on yellow
+            else:
+                pygame.draw.rect(self.screen, jeopardy_dark_blue, rect)
+                text_color = white  # White text on dark blue
+                
+            pygame.draw.rect(self.screen, jeopardy_gold, rect, 1)  # Gold border
+            text = self.font.render(header, True, text_color)
             self.screen.blit(text, (rect.x + 5, rect.y + 5))
 
         # Data rows
@@ -48,26 +61,36 @@ class CSVEditor:
                         cell_value = str(board_matrix[r][c])
                     except:
                         cell_value = "N/A"
+                    
+                    # Score column - yellow background
+                    rect = pygame.Rect(col_idx * stretched_cell_width,
+                                    4 * self.cell_height + 10 + row_idx * self.cell_height - self.scroll_offset,
+                                    stretched_cell_width, self.cell_height)
+                    pygame.draw.rect(self.screen, jeopardy_yellow, rect)
+                    text_color = black  # Black text on yellow
                 else:
                     cell_value = str(self.data.iloc[row_idx].get(col, ""))
-
-                rect = pygame.Rect(col_idx * self.cell_width,
-                                   4 * self.cell_height + 10 + row_idx * self.cell_height - self.scroll_offset,
-                                   self.cell_width, self.cell_height)
-
-                if self.selected_row == row_idx and self.selected_col == col_idx and col != "Score":
-                    pygame.draw.rect(self.screen, (100, 200, 255), rect)
-                else:
+                    rect = pygame.Rect(col_idx * stretched_cell_width,
+                                    4 * self.cell_height + 10 + row_idx * self.cell_height - self.scroll_offset,
+                                    stretched_cell_width, self.cell_height)
+                    # White background for other cells
                     pygame.draw.rect(self.screen, white, rect)
-                pygame.draw.rect(self.screen, black, rect, 1)
+                    text_color = black  # Black text on white
 
-                text = self.font.render(cell_value[:20] + "..." if len(cell_value) > 20 else cell_value, True, black)
+                # Highlight selected cell (except Score column)
+                if self.selected_row == row_idx and self.selected_col == col_idx and col != "Score":
+                    pygame.draw.rect(self.screen, (100, 200, 255), rect)  # Light blue selection
+                
+                # Dark blue divisions between cells
+                pygame.draw.rect(self.screen, jeopardy_dark_blue, rect, 1)
+
+                text = self.font.render(cell_value[:20] + "..." if len(cell_value) > 20 else cell_value, True, text_color)
                 self.screen.blit(text, (rect.x + 5, rect.y + 5))
     def is_valid_data(self):
-        # Check for 5 non-empty categories
+        # Check for 6 non-empty categories
         category_vals = self.data["Categories"].dropna().astype(str).str.strip()
-        if len(category_vals) < 5 or any(cat == "" for cat in category_vals[:5]):
-            return False, "You must have 5 non-empty categories."
+        if len(category_vals) < 6 or any(cat == "" for cat in category_vals[:6]):
+            return False, "You must have 6 non-empty categories."
 
         required_coords = {(r, c) for r in range(1, 6) for c in range(6)}
         actual_coords = set()
@@ -113,7 +136,7 @@ class CSVEditor:
                     # Detect category cell click
                     if self.cell_height <= y < 2 * self.cell_height:
                         col = x // self.cell_width
-                        if 0 <= col < 5 and col < len(self.data):
+                        if 0 <= col < 6 and col < len(self.data):
                             self.editing_category_col = col
                             self.edit_text = str(self.data.iloc[col].get("Categories", ""))
 
@@ -178,42 +201,38 @@ class CSVEditor:
             return
 
         # Merged header row for "CATEGORIES"
-        merged_rect = pygame.Rect(0, 0, self.cell_width * 5, self.cell_height)
-        pygame.draw.rect(self.screen, (180, 180, 250), merged_rect)
-        pygame.draw.rect(self.screen, black, merged_rect, 1)
-        text = self.font.render("CATEGORIES", True, black)
+        merged_rect = pygame.Rect(0, 0, self.cell_width * 6, self.cell_height)
+        pygame.draw.rect(self.screen, jeopardy_dark_blue, merged_rect)
+        pygame.draw.rect(self.screen, jeopardy_gold, merged_rect, 2)
+        text = self.font.render("CATEGORIES", True, white)
         text_rect = text.get_rect(center=merged_rect.center)
         self.screen.blit(text, text_rect)
 
-        # Editable category row
-        for i in range(5):
+        # Editable category row - using jeopardy_yellow
+        for i in range(6):
             cat_val = ""
             if i < len(self.data):
                 cat_val = str(self.data.iloc[i].get("Categories", ""))
 
             cat_rect = pygame.Rect(i * self.cell_width, self.cell_height, self.cell_width, self.cell_height)
-            pygame.draw.rect(self.screen, white, cat_rect)
-            pygame.draw.rect(self.screen, blue if self.editing_category_col == i else black, cat_rect, 2)
+            pygame.draw.rect(self.screen, jeopardy_yellow, cat_rect)
+            pygame.draw.rect(self.screen, jeopardy_gold if self.editing_category_col == i else jeopardy_dark_blue, cat_rect, 2)
             text = self.font.render(cat_val[:18] + "..." if len(cat_val) > 18 else cat_val, True, black)
             self.screen.blit(text, (cat_rect.x + 5, cat_rect.y + 5))
     def show_popup(self, message, duration=2000):
-        # Store the current screen content to restore later
         screen_copy = self.screen.copy()
         
-        # Create popup with dark blue background and gold text
         popup_rect = pygame.Rect(WIDTH // 4, HEIGHT // 3, WIDTH // 2, 100)
-        pygame.draw.rect(self.screen, (0, 0, 139), popup_rect)  # Dark blue
-        pygame.draw.rect(self.screen, (184, 134, 11), popup_rect, 2)  # Gold border
+        pygame.draw.rect(self.screen, jeopardy_dark_blue, popup_rect)
+        pygame.draw.rect(self.screen, jeopardy_gold, popup_rect, 3)  # Thicker gold border
 
-        text = self.font.render(message, True, (255, 215, 0))  # Gold text
+        text = self.font.render(message, True, white)  # White text for better contrast
         text_rect = text.get_rect(center=popup_rect.center)
         self.screen.blit(text, text_rect)
         pygame.display.update()
 
-        # Pause to show the popup for given duration (ms)
         pygame.time.delay(duration)
         
-        # Restore the original screen content
         self.screen.blit(screen_copy, (0, 0))
         pygame.display.update()
     def run(self):
@@ -226,21 +245,26 @@ class CSVEditor:
             self.draw_table()
             self.draw_edit_box()
 
-            save_btn = pygame.Rect(WIDTH - 150, 10, 140, 40)
-            pygame.draw.rect(self.screen, green, save_btn)
-            save_text = self.font.render("Save & Exit", True, white)
-            self.screen.blit(save_text, (save_btn.x + 20, save_btn.y + 10))
-
+            # Save button styling
+            save_btn = pygame.Rect(WIDTH//2 - 100, HEIGHT - 60, 200, 50)
+            pygame.draw.rect(self.screen, jeopardy_blue, save_btn)  # Using the jeopardy blue
+            pygame.draw.rect(self.screen, jeopardy_gold, save_btn, 3)  # Gold border
+            save_text = self.font.render("SAVE & EXIT", True, white)  # White text
+            
             mouse_pos = pygame.mouse.get_pos()
             mouse_click = pygame.mouse.get_pressed()
-            if save_btn.collidepoint(mouse_pos) and mouse_click[0]:
-                valid, msg = self.is_valid_data()
-                if valid:
-                    self.data.to_csv(self.csv_file, index=False)
-                    return True
-                else:
-                    self.show_popup(msg)
-
+            if save_btn.collidepoint(mouse_pos):
+                pygame.draw.rect(self.screen, jeopardy_dark_blue, save_btn)  # Darker on hover
+                pygame.draw.rect(self.screen, jeopardy_yellow, save_btn, 3)  # Yellow border on hover
+                if mouse_click[0]:
+                    valid, msg = self.is_valid_data()
+                    if valid:
+                        self.data.to_csv(self.csv_file, index=False)
+                        return True
+                    else:
+                        self.show_popup(msg)
+            
+            self.screen.blit(save_text, (save_btn.x + 30, save_btn.y + 15))
             pygame.display.flip()
             clock.tick(30)
 

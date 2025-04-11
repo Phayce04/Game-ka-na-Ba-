@@ -127,21 +127,90 @@ class TeamSetupScreen:
             clock.tick(30)
     
     def select_csv_file(self):
-        """Open file dialog to select CSV"""
+        """Open file dialog to select and validate CSV"""
         root = Tk()
         root.withdraw()  # Hide the main window
         file_path = filedialog.askopenfilename(
             title="Select Questions CSV",
             filetypes=[("CSV Files", "*.csv"), ("All Files", "*.*")]
         )
+
         if file_path:
-            self.current_csv = os.path.basename(file_path)
-            # Reload questions
-            global q, board_matrix
             try:
-                load_questions(self.current_csv)
+                # Load and validate CSV
+                df = pd.read_csv(file_path)
+                required_cols = {"Row", "Col", "Question", "Answer", "Categories"}
+                missing = required_cols - set(df.columns)
+                if missing:
+                    raise ValueError(f"Missing required columns: {', '.join(missing)}")
+
+                # Validate categories
+                categories = df["Categories"].dropna().astype(str).str.strip().tolist()
+                if len(categories) < 6 or any(cat == "" for cat in categories[:6]):
+                    raise ValueError("There must be at least 6 non-empty categories in the 'Categories' column.")
+
+                # Validate Q/A structure
+                required_coords = {(r, c) for r in range(1, 6) for c in range(6)}
+                actual_coords = set()
+
+                for i, row in df.iterrows():
+                    try:
+                        r = int(row["Row"])
+                        c = int(row["Col"])
+                    except:
+                        raise ValueError(f"Row {i+1}: Row and Col must be integers.")
+
+                    if not (1 <= r <= 5):
+                        raise ValueError(f"Row {i+1}: Row must be between 1 and 5.")
+                    if not (0 <= c <= 5):
+                        raise ValueError(f"Row {i+1}: Col must be between 0 and 5.")
+
+                    q_text = str(row.get("Question", "")).strip()
+                    a_text = str(row.get("Answer", "")).strip()
+
+                    if not q_text or q_text.lower() == "nan":
+                        raise ValueError(f"Row {i+1}, Col {c}: Question is empty.")
+                    if not a_text or a_text.lower() == "nan":
+                        raise ValueError(f"Row {i+1}, Col {c}: Answer is empty.")
+
+                    actual_coords.add((r, c))
+
+                if actual_coords != required_coords:
+                    missing = sorted(list(required_coords - actual_coords))
+                    raise ValueError(f"Missing Q/A at row {missing[0][0]}, col {missing[0][1]}.")
+
+                # If all validations pass, load the questions
+                self.current_csv = os.path.basename(file_path)
+                global q, board_matrix
+                q, board_matrix = load_questions(file_path)
+                print("CSV loaded and validated successfully.")
+
             except Exception as e:
                 print(f"Error loading CSV: {e}")
+                self.show_popup(f"Invalid CSV:\n{e}")
+
+    def show_popup(self, message, duration=2000):
+        # Create a dark translucent background
+        overlay = pygame.Surface((WIDTH, HEIGHT))
+        overlay.set_alpha(180)
+        overlay.fill((0, 0, 0))
+        self.screen.blit(overlay, (0, 0))
+
+        # Popup box
+        popup_rect = pygame.Rect(WIDTH // 4, HEIGHT // 3, WIDTH // 2, 120)
+        pygame.draw.rect(self.screen, (0, 0, 139), popup_rect)  # Dark blue
+        pygame.draw.rect(self.screen, (255, 215, 0), popup_rect, 3)  # Gold border
+
+        font = pygame.font.SysFont("Arial", 24)
+        lines = message.split("\n")
+        for i, line in enumerate(lines):
+            text = font.render(line, True, (255, 255, 255))
+            text_rect = text.get_rect(center=(WIDTH // 2, HEIGHT // 3 + 30 + i * 30))
+            self.screen.blit(text, text_rect)
+
+        pygame.display.update()
+        pygame.time.delay(duration)
+
     
     def edit_csv_file(self):
         """Open in-game CSV editor"""

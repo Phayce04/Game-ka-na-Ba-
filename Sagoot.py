@@ -487,7 +487,7 @@ while True:
 
         # Wait for click to proceed to team setup
         game_state = "TEAM_SETUP"
-
+# test
     elif game_state == "TEAM_SETUP":
         team_setup = TeamSetupScreen()
         team_names, team_scores = team_setup.show()

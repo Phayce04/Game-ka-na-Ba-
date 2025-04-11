@@ -63,6 +63,43 @@ class CSVEditor:
 
                 text = self.font.render(cell_value[:20] + "..." if len(cell_value) > 20 else cell_value, True, black)
                 self.screen.blit(text, (rect.x + 5, rect.y + 5))
+    def is_valid_data(self):
+        # Check for 5 non-empty categories
+        category_vals = self.data["Categories"].dropna().astype(str).str.strip()
+        if len(category_vals) < 5 or any(cat == "" for cat in category_vals[:5]):
+            return False, "You must have 5 non-empty categories."
+
+        required_coords = {(r, c) for r in range(1, 6) for c in range(6)}
+        actual_coords = set()
+
+        for i, row in self.data.iterrows():
+            try:
+                r = int(row["Row"])
+                c = int(row["Col"])
+            except:
+                return False, f"Row {r}: 'Row' and 'Col' must be integers."
+
+            if not (1 <= r <= 5):
+                return False, f"Row {r}: 'Row' must be between 1 and 5 (got {r})."
+            if not (0 <= c <= 5):
+                return False, f"Row {r}: 'Col' must be between 0 and 5 (got {c})."
+
+            q_text = str(row.get("Question", "")).strip()
+            a_text = str(row.get("Answer", "")).strip()
+
+            if q_text == "" or q_text.lower() == "nan":
+                return False, f"Row {r}, Col {c}: Question is empty."
+            if a_text == "" or a_text.lower() == "nan":
+                return False, f"Row {r}, Col {c}: Answer is empty."
+
+            actual_coords.add((r, c))
+
+        if actual_coords != required_coords:
+            missing = sorted(list(required_coords - actual_coords))
+            return False, f"Missing Q/A at {missing[0]} (row {missing[0][0]}, col {missing[0][1]})."
+
+        return True, ""
+
 
     def handle_events(self):
         for event in pygame.event.get():
@@ -100,8 +137,13 @@ class CSVEditor:
                 if self.selected_row is not None and self.selected_col is not None:
                     if event.key == pygame.K_RETURN:
                         col_name = ["Row", "Col", "Question", "Answer"][self.selected_col]
-                        self.data.at[self.selected_row, col_name] = self.edit_text
-                        self.data.to_csv(self.csv_file, index=False)
+                        self.data.at[self.selected_row, col_name] = self.edit_text.strip()
+                        valid, msg = self.is_valid_data()
+                        if valid:
+                            self.data.to_csv(self.csv_file, index=False)
+                        else:
+                            print("Validation failed:", msg)
+
                         self.selected_row = None
                         self.selected_col = None
                     elif event.key == pygame.K_BACKSPACE:
@@ -111,7 +153,7 @@ class CSVEditor:
 
                 elif self.editing_category_col is not None:
                     if event.key == pygame.K_RETURN:
-                        self.data.at[self.editing_category_col, "Categories"] = self.edit_text
+                        self.data.at[self.editing_category_col, "Categories"] = self.edit_text.strip()
                         self.data.to_csv(self.csv_file, index=False)
                         self.editing_category_col = None
                     elif event.key == pygame.K_BACKSPACE:
@@ -154,7 +196,26 @@ class CSVEditor:
             pygame.draw.rect(self.screen, blue if self.editing_category_col == i else black, cat_rect, 2)
             text = self.font.render(cat_val[:18] + "..." if len(cat_val) > 18 else cat_val, True, black)
             self.screen.blit(text, (cat_rect.x + 5, cat_rect.y + 5))
+    def show_popup(self, message, duration=2000):
+        # Store the current screen content to restore later
+        screen_copy = self.screen.copy()
+        
+        # Create popup with dark blue background and gold text
+        popup_rect = pygame.Rect(WIDTH // 4, HEIGHT // 3, WIDTH // 2, 100)
+        pygame.draw.rect(self.screen, (0, 0, 139), popup_rect)  # Dark blue
+        pygame.draw.rect(self.screen, (184, 134, 11), popup_rect, 2)  # Gold border
 
+        text = self.font.render(message, True, (255, 215, 0))  # Gold text
+        text_rect = text.get_rect(center=popup_rect.center)
+        self.screen.blit(text, text_rect)
+        pygame.display.update()
+
+        # Pause to show the popup for given duration (ms)
+        pygame.time.delay(duration)
+        
+        # Restore the original screen content
+        self.screen.blit(screen_copy, (0, 0))
+        pygame.display.update()
     def run(self):
         running = True
         while running:
@@ -173,8 +234,12 @@ class CSVEditor:
             mouse_pos = pygame.mouse.get_pos()
             mouse_click = pygame.mouse.get_pressed()
             if save_btn.collidepoint(mouse_pos) and mouse_click[0]:
-                self.data.to_csv(self.csv_file, index=False)
-                return True
+                valid, msg = self.is_valid_data()
+                if valid:
+                    self.data.to_csv(self.csv_file, index=False)
+                    return True
+                else:
+                    self.show_popup(msg)
 
             pygame.display.flip()
             clock.tick(30)

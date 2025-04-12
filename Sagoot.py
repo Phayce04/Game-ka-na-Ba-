@@ -12,7 +12,7 @@ from tkinter import filedialog, Tk
 from team import TeamSetupScreen
 from loadquestion import load_questions
 from utils import board_matrix, q, MAX_TIME_LIMIT, WIDTH, HEIGHT, white, grey, black, blue, red, green, yellow, clock
-
+from sparkle import SparkleParticle
 from pygame.locals import *
 
 
@@ -34,7 +34,6 @@ class Player(object):
         self.score = 0
     def set_score(self,score):
         self.score = score
-# WIDTH, HEIGHT = 1200,600
 
 if not pygame.font: print ('Warning, fonts disabled')
 if not pygame.mixer: print ('Warning, sound disabled')
@@ -53,7 +52,6 @@ class GameOverScreen:
         pygame.mixer.music.set_volume(1)
         pygame.mixer.music.play(-1)
 
-        # Determine winning team(s)
         max_score = max(team_scores)
         winners = [i for i, score in enumerate(team_scores) if score == max_score]
 
@@ -61,7 +59,6 @@ class GameOverScreen:
         while running:
             self.screen.fill(black)
 
-            # Game Over title
             title = self.font_large.render("GAME OVER", True, yellow)
             self.screen.blit(title, (WIDTH//2 - title.get_width()//2, 100))
 
@@ -96,27 +93,41 @@ class GameOverScreen:
                     running = False
 
             clock.tick(30)
-
-
 class QuitScreen:
     def __init__(self):
         self.screen = pygame.display.set_mode((WIDTH, HEIGHT))
         self.font_medium = pygame.font.SysFont('Arial', 48)
-        self.restart_button = Button(WIDTH//2 - 150, HEIGHT//2 - 50, 300, 100, "Restart Game", green)
-        self.quit_button = Button(WIDTH//2 - 150, HEIGHT//2 + 100, 300, 100, "Quit Game", red)
+        self.bg_image = pygame.image.load("Larawan/restart.png").convert()
+        self.bg_image = pygame.transform.scale(self.bg_image, (WIDTH, HEIGHT))
+        button_width = 300 * 2 - 100
+        button_height = 100 * 2 - 30
+
+        self.restart_button = Button(WIDTH // 2 - button_width // 2, HEIGHT // 2 - 50 - 120, button_width, button_height, "", (0, 255, 0, 0))
+        self.quit_button = Button(WIDTH // 2 - button_width // 2, HEIGHT // 2 + 100 - 50, button_width, button_height, "", (255, 0, 0, 0))
+
+        # Add gold sparkle to each button (manual position)
+        restart_x = self.restart_button.rect.left + 10
+        restart_y = self.restart_button.rect.top + 18
+        quit_x = self.quit_button.rect.right - 5
+        quit_y = self.quit_button.rect.top + 60
+
+        self.restart_sparkle = SparkleParticle(restart_x, restart_y)
+        self.quit_sparkle = SparkleParticle(quit_x, quit_y)
 
     def show(self):
         running = True
         while running:
-            self.screen.fill(black)
-            
-            # Screen title
-            title = self.font_medium.render("Game Over", True, yellow)
-            self.screen.blit(title, (WIDTH//2 - title.get_width()//2, 100))
-            
-            # Draw buttons
+            self.screen.blit(self.bg_image, (0, 0))
+
             self.restart_button.draw(self.screen)
             self.quit_button.draw(self.screen)
+
+            # Update and draw sparkles
+            self.restart_sparkle.update()
+            self.restart_sparkle.draw(self.screen)
+
+            self.quit_sparkle.update()
+            self.quit_sparkle.draw(self.screen)
 
             pygame.display.flip()
 
@@ -134,6 +145,8 @@ class QuitScreen:
                         sys.exit()
 
             clock.tick(30)
+
+
 
     def reset_game(self):
         """Resets all game variables to their initial state"""
@@ -160,24 +173,32 @@ class QuitScreen:
         game_state = "HOME"
         main_game_music_playing = False
 
-
 class Button:
     def __init__(self, x, y, width, height, text, color):
         self.rect = pygame.Rect(x, y, width, height)
         self.text = text
-        self.color = color
+        self.color = color  # Expecting (R, G, B, A)
         self.font = pygame.font.SysFont('Arial', 36)
         
     def draw(self, surface):
-        pygame.draw.rect(surface, self.color, self.rect)
-        pygame.draw.rect(surface, black, self.rect, 2)
-        
-        text_surface = self.font.render(self.text, True, white)
-        text_rect = text_surface.get_rect(center=self.rect.center)
-        surface.blit(text_surface, text_rect)
+
+        # Create a transparent surface with per-pixel alpha
+        button_surface = pygame.Surface((self.rect.width, self.rect.height), pygame.SRCALPHA)
+        button_surface.fill(self.color)  # Fill with RGBA color
+
+        surface.blit(button_surface, self.rect.topleft)
+
+
+        # Draw text if there is any
+        if self.text:
+            text_surface = self.font.render(self.text, True, black)
+            text_rect = text_surface.get_rect(center=self.rect.center)
+            surface.blit(text_surface, text_rect)
+
         
     def is_clicked(self, pos):
         return self.rect.collidepoint(pos)
+
 class Pane(object):
     def __init__(self):
         self.font = pygame.font.Font("Fonts/bernoru-blackultraexpanded.otf", 15)
@@ -736,18 +757,13 @@ while True:
             clock.tick(60)
 
     elif game_state == "GAME_OVER":
-        # Show game results first
         game_over_screen = GameOverScreen()
         game_over_screen.show(team_names, team_scores)
         
-        # Then show quit/restart options
         quit_screen = QuitScreen()
         action = quit_screen.show()
         
         if action == "restart":
-            # Reset game state
-            game_state = "HOME"  # or "GAME" depending on your flow
-            # The reset_game() was already called by QuitScreen
+            game_state = "HOME"  
         else:
-            # Quit was selected (handled within QuitScreen)
             pass

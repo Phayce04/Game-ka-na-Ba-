@@ -60,7 +60,7 @@ class GameOverScreen:
 
         pygame.mixer.music.stop()
         pygame.mixer.music.load('Tunog/bgm.wav')
-        pygame.mixer.music.set_volume(0)
+        pygame.mixer.music.set_volume(1)
         pygame.mixer.music.play(-1)
 
         max_score = max(team_scores)
@@ -226,6 +226,7 @@ class Button:
         self.font = pygame.font.SysFont('Arial', 36)
         
     def draw(self, surface):
+
         # Create a transparent surface with per-pixel alpha
         button_surface = pygame.Surface((self.rect.width, self.rect.height), pygame.SRCALPHA)
         button_surface.fill(self.color)  # Fill with RGBA color
@@ -238,65 +239,202 @@ class Button:
             text_surface = self.font.render(self.text, True, black)
             text_rect = text_surface.get_rect(center=self.rect.center)
             surface.blit(text_surface, text_rect)
+
         
     def is_clicked(self, pos):
         return self.rect.collidepoint(pos)
 
 class Pane(object):
     def __init__(self):
-        self.font = pygame.font.SysFont('Arial', 18)
-        pygame.display.set_caption('Box Test')
+        self.font = pygame.font.Font("Fonts/bernoru-blackultraexpanded.otf", 15)
+        self.score_font = pygame.font.Font("Fonts/bernoru-blackultraexpanded.otf", 17)
+        
         self.screen = pygame.display.set_mode((WIDTH, HEIGHT), 0, 32)
-        self.screen.fill((white))
+        self.screen.fill(white)
         self.draw_grid_flag = True
         pygame.display.update()
 
+    def get_gradient_color(self, row, total_rows):
+        top_color = pygame.Color(30, 60, 180)
+        bottom_color = pygame.Color(138, 43, 226)
+        ratio = row / total_rows
+        return (
+            int(top_color.r + (bottom_color.r - top_color.r) * ratio),
+            int(top_color.g + (bottom_color.g - top_color.g) * ratio),
+            int(top_color.b + (bottom_color.b - top_color.b) * ratio)
+        )
+
     def draw_grid(self):
         if self.draw_grid_flag:
-            self.screen.fill((white))    
-            self.rect = pygame.draw.rect(self.screen, (blue), (0, 0, WIDTH, HEIGHT / 8))  # Blue bar at the top
+            self.screen.fill((8, 10, 60))  # Dark backdrop
             self.draw_grid_flag = False
             self.show_score()
             self.show_selected_box()
 
-        cell_height = HEIGHT / 8
+        cell_height = int(HEIGHT / 8)  # Cast to integer
         cell_width = WIDTH / 6
 
+        # === Step 1: Determine max font size that fits ALL category names ===
+        category_texts = [str(board_matrix[0][col]).upper() for col in range(6)]
+        max_font_size = 26
+        min_font_size = 12
+        final_font_size = max_font_size
+
+        for size in range(max_font_size, min_font_size - 1, -1):
+            header_font = pygame.font.Font("Fonts/bernoru-blackultraexpanded.otf", size)
+            if all(header_font.render(text, True, white).get_width() <= cell_width - 10 for text in category_texts):
+                final_font_size = size
+                break
+
+        shared_header_font = pygame.font.Font("Fonts/bernoru-blackultraexpanded.otf", final_font_size)
+
+        # === Step 2: Draw grid ===
         for row in range(6):
             for col in range(6):
-                self.rect = pygame.draw.rect(self.screen, (black), 
-                                             (col * cell_width, row * cell_height , cell_width, cell_height), 2)
+                rect = pygame.Rect(col * cell_width, row * cell_height, cell_width, cell_height)
+
+                if row == 0:
+                    # Header cell: Gold background (#eeca3e)
+                    pygame.draw.rect(self.screen, pygame.Color('#eeca3e'), rect)  # Gold header
+
+                    # Glossy shine (softened for subtlety)
+                    shine = pygame.Surface((cell_width, cell_height // 2), pygame.SRCALPHA)
+                    pygame.draw.rect(shine, (255, 255, 255, 30), shine.get_rect())
+                    self.screen.blit(shine, rect.topleft)
+
+                    # Unique underline (gold glow)
+                    underline_rect = pygame.Rect(
+                        rect.left + 10,
+                        rect.bottom - 8,
+                        cell_width - 20,
+                        3
+                    )
+                    pygame.draw.rect(self.screen, pygame.Color('#eeca3e'), underline_rect)  # Glowing gold underline
+
+                    # Render header text (soft white for better readability)
+                    header_text = category_texts[col]
+                    header_text_surface = shared_header_font.render(header_text, True, (245, 245, 245))  # Soft white text
+                    text_shadow = shared_header_font.render(header_text, True, (100, 100, 100))  # Soft gray shadow
+
+                    text_x = col * cell_width + cell_width // 2 - header_text_surface.get_width() // 2
+                    text_y = row * cell_height + cell_height // 2 - header_text_surface.get_height() // 2
+
+                    self.screen.blit(text_shadow, (text_x + 2, text_y + 2))
+                    self.screen.blit(header_text_surface, (text_x, text_y))
+
+                else:
+                    # Regular cell with gradient color (blue)
+                    start_color = pygame.Color('#181a89')  # Darker blue
+                    end_color = pygame.Color('#12116b')    # Lighter blue
+                    gradient_rect = pygame.Rect(col * cell_width, row * cell_height, cell_width, cell_height)
+
+                    # Gradient surface for each cell
+                    gradient = pygame.Surface((cell_width, cell_height))
+                    for y in range(cell_height):
+                        ratio = y / cell_height
+                        color = pygame.Color(
+                            int(start_color.r + ratio * (end_color.r - start_color.r)),
+                            int(start_color.g + ratio * (end_color.g - start_color.g)),
+                            int(start_color.b + ratio * (end_color.b - start_color.b))
+                        )
+                        pygame.draw.line(gradient, color, (0, y), (cell_width, y))
+
+                    self.screen.blit(gradient, (col * cell_width, row * cell_height))
+
+                    # Regular gold borders
+                    pygame.draw.rect(self.screen, pygame.Color('#eeca3e'), gradient_rect, 3)  # Gold border
+                    pygame.draw.rect(self.screen, black, gradient_rect, 1)         # Black inner border
+
+                    # Shine strip
+                    shine_rect = pygame.Rect(col * cell_width + 5, row * cell_height + 5,
+                                            cell_width - 10, 15)
+                    shine = pygame.Surface((shine_rect.width, shine_rect.height), pygame.SRCALPHA)
+                    pygame.draw.rect(shine, (255, 255, 255, 60), shine.get_rect())
+                    self.screen.blit(shine, shine_rect)
+
+                    # Add text to non-header cells (grid cells) and make sure the text is gold
+                    if row > 0:
+                        cell_font = pygame.font.Font("Fonts/bernoru-blackultraexpanded.otf", 18)
+                        grid_text_surface = cell_font.render(str(board_matrix[row][col]), True, pygame.Color('#eeca3e'))  # Gold text
+                        grid_text_rect = grid_text_surface.get_rect(center=(col * cell_width + cell_width // 2,
+                                                                            row * cell_height + cell_height // 2))
+                        self.screen.blit(grid_text_surface, grid_text_rect)
 
         pygame.display.update()
 
+
+
+
     def clear_already_selected(self, col, row):
-        self.screen.blit(answered_img, (row * (WIDTH // 6), col * (HEIGHT // 8)))
+        cell_width = WIDTH // 6
+        cell_height = HEIGHT / 8
+        answered_img = pygame.image.load("Larawan/parangpiattos.png")
+        answered_img = pygame.transform.scale(answered_img, (cell_width, cell_height))
+        self.screen.blit(answered_img, (row * cell_width, col * cell_height))
 
     def show_score(self):
-        curser = 10
-        self.rect = pygame.draw.rect(self.screen, (grey), (0, HEIGHT / 8 * 7, WIDTH, HEIGHT / 8))  # Score area
-        for team in team_names:
-            self.screen.blit(self.font.render(team, True, (255, 0, 0)), (curser, (HEIGHT / 8 * 7)+10))
-            curser += WIDTH / 6
-        curser = 10
-        for score in team_scores:
-            self.screen.blit(self.font.render(str(score), True, (255, 0, 0)), (curser, (HEIGHT / 8 * 7)+40))
-            curser += WIDTH / 6
+        score_area = pygame.Rect(0, HEIGHT / 8 * 7, WIDTH, HEIGHT / 8)
+        pygame.draw.rect(self.screen, (30, 30, 80), score_area)
+        pygame.draw.rect(self.screen, (255, 215, 0), score_area, 3)
+        
+        cell_width = WIDTH / 6
+        for i, (name, score) in enumerate(zip(team_names, team_scores)):
+            name_text = self.font.render(name, True, white)
+            name_shadow = self.font.render(name, True, black)
+            name_x = i * cell_width + cell_width // 2 - name_text.get_width() // 2
+
+            score_text = self.score_font.render(f"₱{score:,}", True, (255, 215, 0))
+            score_shadow = self.score_font.render(f"₱{score:,}", True, black)
+            score_x = i * cell_width + cell_width // 2 - score_text.get_width() // 2
+
+            self.screen.blit(name_shadow, (name_x + 2, (HEIGHT / 8 * 7) + 15 + 2))
+            self.screen.blit(score_shadow, (score_x + 2, (HEIGHT / 8 * 7) + 45 + 2))
+            self.screen.blit(name_text, (name_x, (HEIGHT / 8 * 7) + 15))
+            self.screen.blit(score_text, (score_x, (HEIGHT / 8 * 7) + 45))
 
     def show_selected_box(self):
-        self.show_score()
-        self.rect = pygame.draw.rect(self.screen, (red), 
-                                     (selected_team_index * (WIDTH / 6), HEIGHT / 8 * 7, WIDTH / 6, HEIGHT / 8), 3)
-        self.rect = pygame.draw.rect(self.screen, (red), 
-                                     (selected_team_index * (WIDTH / 6), HEIGHT / 8 * 7, WIDTH / 6, HEIGHT / 8))
+        if selected_team_index >= 0:
+            cell_width = WIDTH / 6
+            highlight_rect = pygame.Rect(
+                selected_team_index * cell_width, 
+                HEIGHT / 8 * 7, 
+                cell_width, 
+                HEIGHT / 8
+            )
+            
+            highlight = pygame.Surface((cell_width, HEIGHT / 8), pygame.SRCALPHA)
+            pygame.draw.rect(highlight, (255, 255, 255, 60), highlight.get_rect())
+            self.screen.blit(highlight, highlight_rect)
+
+            border_thickness = 3 + int(2 * math.sin(pygame.time.get_ticks() / 200))
+            pygame.draw.rect(self.screen, (255, 215, 0), highlight_rect, border_thickness)
 
     def addText(self, pos, text):
-        x = pos[0] * WIDTH / 6 + 10
-        y = pos[1] * (HEIGHT / 8) + 35
-        color = red
-        if y < HEIGHT / 8:
-            color = yellow
-        self.screen.blit(self.font.render(str(text), True, color), (x, y))
+        col, row = pos
+        cell_width = WIDTH / 6
+        cell_height = HEIGHT / 8
+
+        if row == 0:
+            return
+
+        cell_font = pygame.font.Font("Fonts/bernoru-blackultraexpanded.otf", 18)
+        shadow_offset = (2, 2)
+
+        shadow_surface = cell_font.render(str(text), True, black)
+        shadow_rect = shadow_surface.get_rect(center=(
+            col * cell_width + cell_width // 2 + shadow_offset[0],
+            row * cell_height + cell_height // 2 + shadow_offset[1]
+        ))
+
+        text_surface = cell_font.render(str(text), True, pygame.Color("#eeca3e"))
+
+        text_rect = text_surface.get_rect(center=(
+            col * cell_width + cell_width // 2,
+            row * cell_height + cell_height // 2
+        ))
+
+        self.screen.blit(shadow_surface, shadow_rect)
+        self.screen.blit(text_surface, text_rect)
 
 
 class Question(object):
@@ -556,8 +694,8 @@ while True:
             if not grid_drawn_flag:
                 pane1.draw_grid()
                 for i in range(6):  # 6 columns
-                    for j in range(0, 6):  # Only rows 1-5 (question rows)
-                        pane1.addText((i, j ), board_matrix[j][i])  # Adjusted to display questions in rows 1-5
+                    for j in range(6):  # All rows (0-5)
+                        pane1.addText((i, j), board_matrix[j][i])
                 grid_drawn_flag = True
 
             for each_already_selected in already_selected:

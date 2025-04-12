@@ -248,11 +248,32 @@ class Pane(object):
     def __init__(self):
         self.font = pygame.font.Font("Fonts/bernoru-blackultraexpanded.otf", 15)
         self.score_font = pygame.font.Font("Fonts/bernoru-blackultraexpanded.otf", 17)
+        self.placeholder_font = pygame.font.Font("Fonts/ArchivoBlack-Regular.ttf", 24)
+        self.placeholder_rect = pygame.Rect(0, 6*(HEIGHT/8), WIDTH, HEIGHT/8)  # 7th row
+
+        # Initialize with default placeholder text
+        self.placeholder_text = "SELECT A TEAM"
         
         self.screen = pygame.display.set_mode((WIDTH, HEIGHT), 0, 32)
         self.screen.fill(white)
         self.draw_grid_flag = True
         pygame.display.update()
+
+    def draw_placeholder_area(self):
+        """Draw only the placeholder area without redrawing everything"""
+        pygame.draw.rect(self.screen, (20, 25, 80), self.placeholder_rect)
+        pygame.draw.rect(self.screen, pygame.Color('#eeca3e'), self.placeholder_rect, 3)
+        
+        # Draw text
+        text_surface = self.placeholder_font.render(self.placeholder_text, True, pygame.Color('#eeca3e'))
+        text_shadow = self.placeholder_font.render(self.placeholder_text, True, (0, 0, 0))
+        text_x = WIDTH // 2 - text_surface.get_width() // 2
+        text_y = 6*(HEIGHT/8) + (HEIGHT/8)/2 - text_surface.get_height()//2
+        
+        self.screen.blit(text_shadow, (text_x + 2, text_y + 2))
+        self.screen.blit(text_surface, (text_x, text_y))
+        
+        pygame.display.update(self.placeholder_rect)  
 
     def get_gradient_color(self, row, total_rows):
         top_color = pygame.Color(30, 60, 180)
@@ -289,7 +310,7 @@ class Pane(object):
         shared_header_font = pygame.font.Font("Fonts/bernoru-blackultraexpanded.otf", final_font_size)
 
         # === Step 2: Draw grid ===
-        for row in range(6):
+        for row in range(7):  # Changed from 6 to 7 to include the new row
             for col in range(6):
                 rect = pygame.Rect(col * cell_width, row * cell_height, cell_width, cell_height)
 
@@ -322,6 +343,21 @@ class Pane(object):
                     self.screen.blit(text_shadow, (text_x + 2, text_y + 2))
                     self.screen.blit(header_text_surface, (text_x, text_y))
 
+                elif row == 6:  # Placeholder row
+                    # Draw background for the placeholder row
+                    placeholder_rect = pygame.Rect(0, row * cell_height, WIDTH, cell_height)
+                    pygame.draw.rect(self.screen, (20, 25, 80), placeholder_rect)
+                    pygame.draw.rect(self.screen, pygame.Color('#eeca3e'), placeholder_rect, 3)
+                    
+                    # Use the current placeholder text
+                    text_surface = self.placeholder_font.render(self.placeholder_text, True, pygame.Color('#eeca3e'))
+                    text_shadow = self.placeholder_font.render(self.placeholder_text, True, (0, 0, 0))
+                    
+                    text_x = WIDTH // 2 - text_surface.get_width() // 2
+                    text_y = row * cell_height + cell_height // 2 - text_surface.get_height() // 2
+                    
+                    self.screen.blit(text_shadow, (text_x + 2, text_y + 2))
+                    self.screen.blit(text_surface, (text_x, text_y))
                 else:
                     # Regular cell with gradient color (blue)
                     start_color = pygame.Color('#181a89')  # Darker blue
@@ -361,6 +397,8 @@ class Pane(object):
                         self.screen.blit(grid_text_surface, grid_text_rect)
 
         pygame.display.update()
+
+    # ... (rest of the Pane class methods remain the same)
 
 
 
@@ -496,41 +534,31 @@ class Question(object):
 
         pygame.display.update()
     def show_answer(self, text):
-        # Draw answer background (different from question)
         self.screen.blit(self.answer_bg, (0, 0))
-
-        # Calculate size of the text
         sizeX, sizeY = self.font.size(text)
-
-        # Limit text width to 80% of screen and center it within that area
         max_width = WIDTH * 0.8
-        text_x = (WIDTH * 0.1) + (max_width / 2) - (sizeX / 2)  # Center text within 80% of screen width
+        text_x = (WIDTH * 0.1) + (max_width / 2) - (sizeX / 2)
+        text_y = HEIGHT / 3 + 50
 
-        # Move text a bit higher
-        text_y = HEIGHT / 3 +50  # Move it higher by changing the Y position
-
-        # Show the text with the updated position
         self.screen.blit(self.font.render(str(text), True, (255, 255, 255)), (text_x, text_y))
 
-        # Circle parameters
-        radius = 75  # Increased radius for bigger circles
-        y_pos = 520  # Lower position for buttons
+        radius = 75
+        y_pos = 520
 
-        # Create transparent surfaces for each button
         green_circle = pygame.Surface((radius * 2, radius * 2), pygame.SRCALPHA)
         red_circle = pygame.Surface((radius * 2, radius * 2), pygame.SRCALPHA)
         grey_circle = pygame.Surface((radius * 2, radius * 2), pygame.SRCALPHA)
 
-        # Draw translucent circles with alpha = 100
         pygame.draw.circle(green_circle, (0, 255, 0, 0), (radius, radius), radius)
         pygame.draw.circle(red_circle, (255, 0, 0, 0), (radius, radius), radius)
         pygame.draw.circle(grey_circle, (128, 128, 128, 0), (radius, radius), radius)
 
-        self.screen.blit(green_circle, (WIDTH / 6 + 150 - radius, y_pos))  # Move green circle to the right
-        self.screen.blit(red_circle, (4 * (WIDTH / 6) + 120 - radius, y_pos))  # Move red circle to the right
+        self.screen.blit(green_circle, (WIDTH / 6 + 150 - radius, y_pos))
+        self.screen.blit(red_circle, (4 * (WIDTH / 6) + 120 - radius, y_pos))
         self.screen.blit(grey_circle, ((WIDTH / 2 - 20) - radius, y_pos))
 
         pygame.display.update()
+
 
 class Timer(object):
     def __init__(self):
@@ -546,9 +574,8 @@ class Timer(object):
         self.timer_width = WIDTH / 6
         self.timer_height = 100
         
-        # Create a semi-transparent surface for the background
         self.timer_bg = pygame.Surface((self.timer_width, self.timer_height), pygame.SRCALPHA)
-        self.timer_bg.fill((0, 0, 255, 0))  # Blue with 50% transparency (128/255)
+        self.timer_bg.fill((0, 0, 255, 0))
 
     def start(self):
         """Start or restart the timer"""
@@ -560,27 +587,17 @@ class Timer(object):
         """Display the timer with a larger dark blue circle positioned lower on the screen"""
         self.elapsed = round(time.perf_counter() - self.startTime, 1)
 
-        # Adjust vertical position
-        self.timer_y_pos = 667  # Move lower (adjust to taste)
-
-        # Set larger circle radius
+        self.timer_y_pos = 667  
         circle_radius = 70
-
-        # Calculate circle center
         circle_center = (
             int(self.timer_x_pos + self.timer_width / 2),
             int(self.timer_y_pos + self.timer_height / 2)
         )
-
-        # Draw dark blue circle
         pygame.draw.circle(self.screen, (0, 0, 139), circle_center, circle_radius)
-
-        # Render yellow timer text
         timer_text = self.font.render(str(self.elapsed), True, (255, 255, 0))
         text_rect = timer_text.get_rect(center=circle_center)
         self.screen.blit(timer_text, text_rect)
 
-        # Time expiration logic
         if self.elapsed >= MAX_TIME_LIMIT and not self.time_expired:
             self.time_expired = True
             if not self.buzzer_played:
@@ -588,9 +605,6 @@ class Timer(object):
                 pygame.mixer.music.play()
                 self.buzzer_played = True
             print("Time's up!")
-
-
-
 
 # Button positions (unchanged)
 exit_button_rect = pygame.Rect(WIDTH - 60, 10, 50, 30)
@@ -680,14 +694,19 @@ while True:
         click_count = 0
         if game_state == "MAIN_GAME" and not main_game_music_playing:
             pygame.mixer.music.stop()
-            pygame.mixer.music.load('Tunog/trial.wav')  # Change to your game music
+            pygame.mixer.music.load('Tunog/trial.wav')
             pygame.mixer.music.set_volume(0) 
             pygame.mixer.music.play(-1)
             main_game_music_playing = True
 
-        if len(already_selected) == 1:  # 5 categories * 6 questions = 30
+        if len(already_selected) == 3:
             game_state = "GAME_OVER"
             continue  
+
+        # Reset to team selection phase
+        team_selected = False
+        pane1.placeholder_text = "PUMILI NG KOPONAN"  # Directly update the text
+        pane1.draw_placeholder_area()  # Only redraw the placeholder area
 
         while not question_time:
             r, c = 0, 0
@@ -702,7 +721,6 @@ while True:
                 pane1.clear_already_selected(each_already_selected[0], each_already_selected[1])
 
             draw_exit_button(pygame.display.get_surface())
-
 
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
@@ -719,23 +737,22 @@ while True:
                         for col in range(6):  # Only 6 columns
                             if col * (WIDTH / 6) < event.pos[0] < (col + 1) * (WIDTH / 6):
                                 c = col
-                                # Check if click is in rows 1-5 (skipping row 0 and row 6)
                                 for row in range(1, 6):  # Clickable rows: 1-5
-                                    row_pixel = row * (HEIGHT / 8)  # Adjusted to skip row 0
+                                    row_pixel = row * (HEIGHT / 8)
                                     if row_pixel < event.pos[1] < (row + 1) * (HEIGHT / 8):
                                         r = row 
-                                        print('Clicked on:', r, c, 'SCORE:', board_matrix[r][c])  # Adjusted to map to board_matrix[1,0] -> board_matrix[5,5]
+                                        print('Clicked on:', r, c, 'SCORE:', board_matrix[r][c])
                                         show_question_flag = True
                                         if (r, c) not in already_selected:
                                             already_selected.append((r, c))
                                             current_selected = [r, c]
                                             question_time = True
                                         else:
-                                            print('Already selected')
+                                            pane1.placeholder_text = "PUMILI NG IBA"
+                                            pane1.draw_placeholder_area()
 
                     else:
                         print('First select a team')
-                        # Check if click is in team area (rows 7-8)
                         if event.pos[1] > HEIGHT - (2 * (HEIGHT / 8)):
                             for col in range(6):
                                 if col < len(team_names) and col * (WIDTH / 6) < event.pos[0] < (col + 1) * (WIDTH / 6):
@@ -743,12 +760,12 @@ while True:
                                     selected_team_index = col
                                     pane1.show_selected_box()
                                     team_selected = True
-                                else:
-                                    print("Clicked on empty spot, no team here!")
+                                    pane1.placeholder_text = "PUMILI NG TANONG"
+                                    pane1.draw_placeholder_area()
+                                    break
 
             pygame.display.update()
             clock.tick(60)
-
 
         while question_time:
             grid_drawn_flag = False

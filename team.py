@@ -120,8 +120,13 @@ class TeamSetupScreen:
                     if event.key == pygame.K_BACKSPACE:
                         self.team_inputs[self.active_input] = self.team_inputs[self.active_input][:-1]
                     else:
-                        if len(self.team_inputs[self.active_input]) < 15:
+                        if (
+                            len(self.team_inputs[self.active_input]) < 6
+                            and event.unicode.isprintable()
+                            and not event.unicode.isspace()
+                        ):
                             self.team_inputs[self.active_input] += event.unicode
+
             
             pygame.display.flip()
             clock.tick(30)

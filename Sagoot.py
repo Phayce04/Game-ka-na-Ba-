@@ -37,16 +37,27 @@ class Player(object):
 
 if not pygame.font: print ('Warning, fonts disabled')
 if not pygame.mixer: print ('Warning, sound disabled')
-
 class GameOverScreen:
     def __init__(self):
         self.screen = pygame.display.set_mode((WIDTH, HEIGHT))
-        self.font_large = pygame.font.SysFont('Arial', 72)
-        self.font_medium = pygame.font.SysFont('Arial', 48)
-        self.font_small = pygame.font.SysFont('Arial', 36)
+        self.font_large = pygame.font.Font('Fonts/bernoru-blackultraexpanded.otf', 72)  # Scores
+        self.font_medium = pygame.font.Font('Fonts/bernoru-blackultraexpanded.otf', 56)
+        self.font_small = pygame.font.Font('Fonts/ArchivoBlack-Regular.ttf', 56)  # Bigger + thinner
+        self.font_thin_large = pygame.font.Font('Fonts/ArchivoBlack-Regular.ttf', 72)  # Winning team name
+        self.font_tiny = pygame.font.Font('Fonts/bernoru-blackultraexpanded.otf', 20)
 
     def show(self, team_names, team_scores):
-        # Play Game Over music
+        num_teams = len(team_names)
+
+        if num_teams == 2:
+            self.bg_image = pygame.image.load('Larawan/gameover2.png').convert()
+        elif num_teams == 3:
+            self.bg_image = pygame.image.load('Larawan/gameover3.png').convert()
+        elif num_teams == 4:
+            self.bg_image = pygame.image.load('Larawan/gameover4.png').convert()
+
+        self.bg_image = pygame.transform.scale(self.bg_image, (WIDTH, HEIGHT))
+
         pygame.mixer.music.stop()
         pygame.mixer.music.load('Tunog/bgm.wav')
         pygame.mixer.music.set_volume(0)
@@ -55,33 +66,63 @@ class GameOverScreen:
         max_score = max(team_scores)
         winners = [i for i, score in enumerate(team_scores) if score == max_score]
 
+        name_color = (238, 202, 62)  # eeca3e
+
         running = True
         while running:
-            self.screen.fill(black)
-
-            title = self.font_large.render("GAME OVER", True, yellow)
-            self.screen.blit(title, (WIDTH//2 - title.get_width()//2, 100))
-
-            # Display winner(s)
+            self.screen.blit(self.bg_image, (0, 0))
+            pygame.draw.line(self.screen, (255, 0, 0), (WIDTH // 2, 0), (WIDTH // 2, HEIGHT), 2)
+            # Winner display
             if len(winners) == 1:
-                winner_text = self.font_medium.render(f"Winner: {team_names[winners[0]]}!", True, green)
+                winner_name = team_names[winners[0]].upper()
+                winner_text = self.font_thin_large.render(winner_name, True, white)
             else:
-                winner_names = " & ".join([team_names[i] for i in winners])
-                winner_text = self.font_medium.render(f"It's a tie! Winners: {winner_names}", True, green)
-            self.screen.blit(winner_text, (WIDTH//2 - winner_text.get_width()//2, 250))
+                winner_names = " & ".join([team_names[i].upper() for i in winners])
+                winner_text = self.font_thin_large.render(winner_names, True, white)
 
-            # Display all scores
-            score_title = self.font_medium.render("Final Scores:", True, white)
-            self.screen.blit(score_title, (WIDTH//2 - score_title.get_width()//2, 350))
+            self.screen.blit(winner_text, (WIDTH // 2 - winner_text.get_width() // 2 + 50, 360))
 
-            for i, (name, score) in enumerate(zip(team_names, team_scores)):
-                score_text = self.font_small.render(f"{name}: {score}", True, white)
-                self.screen.blit(score_text, (WIDTH//2 - score_text.get_width()//2, 420 + i*50))
+            # Team names and scores
+            gap_x = 130  # Default gap
+            if num_teams == 4:  # Set gap to 30px when there are 4 teams
+                gap_x = 40
+            if num_teams == 3:  # Set gap to 30px when there are 4 teams
+                gap_x = 120
+            gap_y = 10
+            y_offset = 530
+            column_width = 285  # Fixed width for each team slot
 
-            # Continue prompt (blinking)
-            continue_text = self.font_small.render("Click to continue", True, yellow)
+            team_texts = []
+            for name, score in zip(team_names, team_scores):
+                name_surf = self.font_small.render(name.upper(), True, name_color)
+                score_surf = self.font_medium.render(str(score), True, white)
+                team_texts.append((name_surf, score_surf))
+
+            total_width = (column_width + gap_x) * num_teams - gap_x
+            start_x = WIDTH // 2 - total_width // 2
+            x = start_x
+
+            for i, (name_surf, score_surf) in enumerate(team_texts):
+                # Center team name within each slot
+                name_x = x + (column_width - name_surf.get_width()) // 2
+                score_x = x + (column_width - score_surf.get_width()) // 2
+
+                self.screen.blit(name_surf, (name_x, y_offset))
+                self.screen.blit(score_surf, (score_x, y_offset + name_surf.get_height() + gap_y))
+
+                # Debug rectangle for slot (for visual clarity)
+                rect_x = x
+                rect_y = y_offset - 10
+                rect_height = name_surf.get_height() + score_surf.get_height() + gap_y + 20
+                pygame.draw.rect(self.screen, (255, 0, 0), (rect_x, rect_y, column_width, rect_height), 2)
+
+                # Move x to next slot
+                x += column_width + gap_x
+
+            # Blinking "click to continue"
+            continue_text = self.font_tiny.render("click to continue", True, name_color)
             if pygame.time.get_ticks() % 1000 < 500:
-                self.screen.blit(continue_text, (WIDTH//2 - continue_text.get_width()//2, HEIGHT - 100))
+                self.screen.blit(continue_text, (WIDTH // 2 - continue_text.get_width() // 2, HEIGHT - 120))
 
             pygame.display.flip()
 
@@ -93,6 +134,10 @@ class GameOverScreen:
                     running = False
 
             clock.tick(30)
+
+
+
+
 class QuitScreen:
     def __init__(self):
         self.screen = pygame.display.set_mode((WIDTH, HEIGHT))
@@ -498,11 +543,11 @@ while True:
         if game_state == "MAIN_GAME" and not main_game_music_playing:
             pygame.mixer.music.stop()
             pygame.mixer.music.load('Tunog/trial.wav')  # Change to your game music
-            pygame.mixer.music.set_volume(0)
+            pygame.mixer.music.set_volume(0) 
             pygame.mixer.music.play(-1)
             main_game_music_playing = True
 
-        if len(already_selected) == 3:  # 5 categories * 6 questions = 30
+        if len(already_selected) == 1:  # 5 categories * 6 questions = 30
             game_state = "GAME_OVER"
             continue  
 

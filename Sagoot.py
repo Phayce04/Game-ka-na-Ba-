@@ -40,22 +40,18 @@ if not pygame.mixer: print ('Warning, sound disabled')
 class GameOverScreen:
     def __init__(self):
         self.screen = pygame.display.set_mode((WIDTH, HEIGHT))
-        self.font_large = pygame.font.Font('Fonts/bernoru-blackultraexpanded.otf', 72)  # Scores
+        self.font_large = pygame.font.Font('Fonts/bernoru-blackultraexpanded.otf', 72)
         self.font_medium = pygame.font.Font('Fonts/bernoru-blackultraexpanded.otf', 56)
-        self.font_small = pygame.font.Font('Fonts/ArchivoBlack-Regular.ttf', 56)  # Bigger + thinner
-        self.font_thin_large = pygame.font.Font('Fonts/ArchivoBlack-Regular.ttf', 72)  # Winning team name
+        self.font_small = pygame.font.Font('Fonts/ArchivoBlack-Regular.ttf', 56)
+        self.font_thin_large = pygame.font.Font('Fonts/ArchivoBlack-Regular.ttf', 72)
         self.font_tiny = pygame.font.Font('Fonts/bernoru-blackultraexpanded.otf', 20)
+        
+        # Initialize sparkles list (will be populated in show() method)
+        self.team_sparkles = []
 
     def show(self, team_names, team_scores):
         num_teams = len(team_names)
-
-        if num_teams == 2:
-            self.bg_image = pygame.image.load('Larawan/gameover2.png').convert()
-        elif num_teams == 3:
-            self.bg_image = pygame.image.load('Larawan/gameover3.png').convert()
-        elif num_teams == 4:
-            self.bg_image = pygame.image.load('Larawan/gameover4.png').convert()
-
+        self.bg_image = pygame.image.load('Larawan/gameover.png').convert()
         self.bg_image = pygame.transform.scale(self.bg_image, (WIDTH, HEIGHT))
 
         pygame.mixer.music.stop()
@@ -65,13 +61,44 @@ class GameOverScreen:
 
         max_score = max(team_scores)
         winners = [i for i, score in enumerate(team_scores) if score == max_score]
-
         name_color = (238, 202, 62)  # eeca3e
+        gold_color = (212, 175, 55)  # Gold color for borders
+        self.team_sparkles = []
+        gap_x = 130
+        if num_teams == 4:
+            gap_x = 40
+        if num_teams == 3:
+            gap_x = 120
+            
+        y_offset = 530
+        column_width = 285
+        total_width = (column_width + gap_x) * num_teams - gap_x
+        start_x = WIDTH // 2 - total_width // 2
+        
+        for i in range(num_teams):
+            x = start_x + i * (column_width + gap_x)
+            # Random position along the border (top, right, bottom, or left)
+            border_side = random.randint(0, 3)
+            if border_side == 0:  # Top border
+                sparkle_x = x + random.randint(10, column_width - 10)
+                sparkle_y = y_offset - 10
+            elif border_side == 1:  # Right border
+                sparkle_x = x + column_width
+                sparkle_y = y_offset - 10 + random.randint(10, 140)
+            elif border_side == 2:  # Bottom border
+                sparkle_x = x + random.randint(10, column_width - 10)
+                sparkle_y = y_offset + 140
+            else:  # Left border
+                sparkle_x = x
+                sparkle_y = y_offset - 10 + random.randint(10, 140)
+            
+            self.team_sparkles.append(SparkleParticle(sparkle_x, sparkle_y))
 
         running = True
         while running:
             self.screen.blit(self.bg_image, (0, 0))
-            pygame.draw.line(self.screen, (255, 0, 0), (WIDTH // 2, 0), (WIDTH // 2, HEIGHT), 2)
+            # pygame.draw.line(self.screen, gold_color, (WIDTH // 2, 0), (WIDTH // 2, HEIGHT), 4)
+
             # Winner display
             if len(winners) == 1:
                 winner_name = team_names[winners[0]].upper()
@@ -82,47 +109,34 @@ class GameOverScreen:
 
             self.screen.blit(winner_text, (WIDTH // 2 - winner_text.get_width() // 2 + 50, 360))
 
-            # Team names and scores
-            gap_x = 130  # Default gap
-            if num_teams == 4:  # Set gap to 30px when there are 4 teams
-                gap_x = 40
-            if num_teams == 3:  # Set gap to 30px when there are 4 teams
-                gap_x = 120
-            gap_y = 10
-            y_offset = 530
-            column_width = 285  # Fixed width for each team slot
-
-            team_texts = []
-            for name, score in zip(team_names, team_scores):
+            # Team names and scores with gold borders
+            x = start_x
+            for i, (name, score) in enumerate(zip(team_names, team_scores)):
                 name_surf = self.font_small.render(name.upper(), True, name_color)
                 score_surf = self.font_medium.render(str(score), True, white)
-                team_texts.append((name_surf, score_surf))
 
-            total_width = (column_width + gap_x) * num_teams - gap_x
-            start_x = WIDTH // 2 - total_width // 2
-            x = start_x
-
-            for i, (name_surf, score_surf) in enumerate(team_texts):
-                # Center team name within each slot
                 name_x = x + (column_width - name_surf.get_width()) // 2
                 score_x = x + (column_width - score_surf.get_width()) // 2
 
                 self.screen.blit(name_surf, (name_x, y_offset))
-                self.screen.blit(score_surf, (score_x, y_offset + name_surf.get_height() + gap_y))
+                self.screen.blit(score_surf, (score_x, y_offset + name_surf.get_height() ))
 
-                # Debug rectangle for slot (for visual clarity)
+                # Draw gold border
                 rect_x = x
                 rect_y = y_offset - 10
-                rect_height = name_surf.get_height() + score_surf.get_height() + gap_y + 20
-                pygame.draw.rect(self.screen, (255, 0, 0), (rect_x, rect_y, column_width, rect_height), 2)
+                rect_height = name_surf.get_height() + score_surf.get_height() + 30
+                pygame.draw.rect(self.screen, gold_color, (rect_x, rect_y, column_width, rect_height), 8)
 
-                # Move x to next slot
+                # Update and draw sparkle for this team's border
+                self.team_sparkles[i].update()
+                self.team_sparkles[i].draw(self.screen)
+
                 x += column_width + gap_x
 
             # Blinking "click to continue"
             continue_text = self.font_tiny.render("click to continue", True, name_color)
             if pygame.time.get_ticks() % 1000 < 500:
-                self.screen.blit(continue_text, (WIDTH // 2 - continue_text.get_width() // 2, HEIGHT - 120))
+                self.screen.blit(continue_text, (WIDTH // 2 - continue_text.get_width() // 2, HEIGHT - 150))
 
             pygame.display.flip()
 
@@ -134,8 +148,6 @@ class GameOverScreen:
                     running = False
 
             clock.tick(30)
-
-
 
 
 class QuitScreen:
@@ -201,7 +213,7 @@ class QuitScreen:
         global main_game_music_playing
 
         # Reset game variables
-        load_questions('qset4_Book.csv')  
+        load_questions('default-na-tanong.csv')  
         p1 = Player()
         show_question_flag = False
         start_flag = False
@@ -221,7 +233,7 @@ class QuitScreen:
         current_message = ""
         original_placeholder = ""
         main_game_music_playing = False
-
+        message="Pumili ng Koponan"
 class Button:
     def __init__(self, x, y, width, height, text, color):
         self.rect = pygame.Rect(x, y, width, height)
@@ -633,7 +645,7 @@ class Cell(object):
         self.text=''
 
 
-load_questions('qset4_Book.csv')  
+load_questions('default-na-tanong.csv')  
 p1 = Player()
 show_question_flag=False
 start_flag = False
@@ -707,7 +719,7 @@ while True:
             pygame.mixer.music.play(-1)
             main_game_music_playing = True
 
-        if len(already_selected) == 3:
+        if len(already_selected) == 1:
             game_state = "GAME_OVER"
             continue  
 

@@ -23,7 +23,7 @@ class TeamSetupScreen:
         self.edit_button = pygame.Rect(WIDTH//2 - 150, HEIGHT - 130, 300, 50)
         self.done_button = pygame.Rect(WIDTH//2 - 100, HEIGHT - 60, 200, 50)
         
-        self.current_csv = 'qset4_Book.csv'  # Default CSV file
+        self.current_csv = 'default-na-tanong.csv'  # Default CSV file
 
     def show(self):
         running = True

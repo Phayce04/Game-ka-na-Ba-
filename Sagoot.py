@@ -216,6 +216,10 @@ class QuitScreen:
         show_timer_flag = False
         Running_flag = True
         game_state = "HOME"
+        show_status_message = False
+        message_display_time = 0
+        current_message = ""
+        original_placeholder = ""
         main_game_music_playing = False
 
 class Button:
@@ -648,6 +652,10 @@ show_timer_flag = False
 Running_flag = True
 game_state = "HOME"
 main_game_music_playing = False 
+show_status_message = False
+message_display_time = 0
+current_message = ""
+original_placeholder = ""
 while True:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
@@ -721,7 +729,43 @@ while True:
                 pane1.clear_already_selected(each_already_selected[0], each_already_selected[1])
 
             draw_exit_button(pygame.display.get_surface())
-
+            if show_status_message:
+                # Calculate current standings
+                current_leader = max(range(len(team_scores)), key=lambda i: team_scores[i])
+                leading_team = team_names[current_leader]
+                team_name = team_names[message_data['team_index']]
+                points = message_data['points']
+                
+                # Determine message
+                if message_data['correct']:
+                    if message_data['prev_leader'] != message_data['team_index'] and \
+                    team_scores[message_data['team_index']] > team_scores[current_leader]:
+                        message = f"NAKAKUHA SI {team_name} NG {points} PUNTOS, SYA NA ANG NANGUNGUNA!"
+                    else:
+                        lead = team_scores[current_leader] - sorted(team_scores)[-2]
+                        message = f"NAKAKUHA SI {team_name} NG {points} PUNTOS, NANGUNGUNA PA RIN SI {leading_team} NG {lead}"
+                else:
+                    if message_data['prev_leader'] == message_data['team_index'] and \
+                    current_leader != message_data['team_index']:
+                        message = f"BUMABA NG {points} SI {team_name}, NANGUNGUNA NA SI {leading_team}"
+                    elif team_scores[message_data['team_index']] == max(team_scores):
+                        lead = team_scores[current_leader] - sorted(team_scores)[-2]
+                        message = f"BUMABA NG {points} SI {team_name}, LAMANG PA RIN SILA NG {lead}"
+                    else:
+                        deficit = max(team_scores) - team_scores[message_data['team_index']]
+                        message = f"BUMABA NG {points} SI {team_name}, KAILANGAN NA NYANG HUMABOL NG {deficit}"
+                
+                # Show message
+                original_text = pane1.placeholder_text
+                pane1.placeholder_text = message
+                pane1.draw_placeholder_area()
+                pygame.display.update()
+                
+                # Wait for 3 seconds then revert
+                pygame.time.delay(3000)
+                pane1.placeholder_text = original_text
+                pane1.draw_placeholder_area()
+                show_status_message = False
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     pygame.quit()
@@ -799,19 +843,34 @@ while True:
                         show_timer_flag = False
                         print("Selected Question", c, r, "Points:", board_matrix[c][r], 'Click Count:', click_count)
                         print("Question Time")
-                        if click_count == 2:
-                            # You can now remove the X-boundary checks here
-                            if event.pos[0] > (WIDTH / 6) and event.pos[0] < 2 * (WIDTH / 6):
-                                print("RIGHTTTTT")
-                                team_scores[selected_team_index] += board_matrix[r][c]
-                            elif event.pos[0] > 4 * (WIDTH / 6) and event.pos[0] < 5 * (WIDTH / 6):
-                                print('WRONGGGG!')
-                                team_scores[selected_team_index] -= board_matrix[r][c]
-                            print('Second Click:', event.pos[0], event.pos[1])
-                            team_selected = False
-                            question_time = False
-                            pane1.draw_grid_flag = True
-                            click_count = 0
+                    if click_count == 2:
+                        # Store previous state for message logic
+                        prev_scores = team_scores.copy()
+                        prev_leader = max(range(len(team_scores)), key=lambda i: prev_scores[i])
+                        
+                        # Update scores
+                        if event.pos[0] > (WIDTH / 6) and event.pos[0] < 2 * (WIDTH / 6):
+                            team_scores[selected_team_index] += board_matrix[r][c]
+                            correct = True
+                        elif event.pos[0] > 4 * (WIDTH / 6) and event.pos[0] < 5 * (WIDTH / 6):
+                            team_scores[selected_team_index] -= board_matrix[r][c]
+                            correct = False
+                        
+                        # Reset game state
+                        team_selected = False
+                        question_time = False
+                        pane1.draw_grid_flag = True
+                        click_count = 0
+                        
+                        # Set flag to show message AFTER returning to grid
+                        show_status_message = True
+                        message_data = {
+                            'correct': correct,
+                            'points': board_matrix[r][c],
+                            'team_index': selected_team_index,
+                            'prev_scores': prev_scores,
+                            'prev_leader': prev_leader
+                        }
 
                    
 

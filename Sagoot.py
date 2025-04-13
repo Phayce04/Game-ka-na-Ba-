@@ -9,7 +9,7 @@ import math
 from tutorial import TutorialScreen  
 from homescreen import HomeScreen  
 from tkinter import filedialog, Tk
-from team import TeamSetupScreen
+from team import TeamSetupScreen, CSVSetupScreen
 from loadquestion import load_questions
 from utils import board_matrix, q, MAX_TIME_LIMIT, WIDTH, HEIGHT, white, grey, black, blue, red, green, yellow, clock
 from sparkle import SparkleParticle
@@ -685,7 +685,6 @@ while True:
                 GameOverScreen().reset_game()
                 continue
 
-    # State machine for different game screens
     if game_state == "HOME":
         home_screen = HomeScreen()
         home_screen.show()
@@ -699,8 +698,15 @@ while True:
         tutorial.show()
         pygame.display.update()
 
-        # Wait for click to proceed to team setup
-        game_state = "TEAM_SETUP"
+        # Wait for click to proceed to CSV setup
+        game_state = "CSV_SETUP"
+
+    elif game_state == "CSV_SETUP":
+        csv_screen = CSVSetupScreen()
+        if csv_screen.show():  # Returns True when user clicks Next
+            # Proceed to team setup after CSV is configured
+            game_state = "TEAM_SETUP"
+        pygame.display.update()
 
     elif game_state == "TEAM_SETUP":
         team_setup = TeamSetupScreen()

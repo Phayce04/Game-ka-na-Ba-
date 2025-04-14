@@ -15,9 +15,6 @@ from utils import board_matrix, q, MAX_TIME_LIMIT, WIDTH, HEIGHT, white, grey, b
 from sparkle import SparkleParticle
 from pygame.locals import *
 
-
-
-
 pygame.init()
 answered_img = pygame.image.load("Larawan/parangpiattos.png")
 answered_img = pygame.transform.scale(answered_img, (WIDTH // 6, HEIGHT/8))
@@ -269,27 +266,74 @@ class Pane(object):
 
         # Initialize with default placeholder text
         self.placeholder_text = "SELECT A TEAM"
+        self.message_bg = pygame.image.load("Larawan/BG2.png").convert_alpha()
+        self.message_bg = pygame.transform.scale(self.message_bg, (WIDTH, int(HEIGHT/8)))
         
+        self.animation_time = 0
+        self.current_scale = 0
+        self.target_scale = 1
+        self.animation_duration = 500  # ms
+        self.last_animation_time = 0
+        # Update the placeholder rect to match the image area
+        self.placeholder_rect = pygame.Rect(0, 6*(HEIGHT/8), WIDTH, HEIGHT/8)
         self.screen = pygame.display.set_mode((WIDTH, HEIGHT), 0, 32)
         self.screen.fill(white)
         self.draw_grid_flag = True
         pygame.display.update()
 
     def draw_placeholder_area(self):
-        """Draw only the placeholder area without redrawing everything"""
-        pygame.draw.rect(self.screen, (20, 25, 80), self.placeholder_rect)
-        pygame.draw.rect(self.screen, pygame.Color('#eeca3e'), self.placeholder_rect, 3)
+        """Draw the message area with animated text"""
+        current_time = pygame.time.get_ticks()
         
-        # Draw text
+        # Draw the background image
+        self.screen.blit(self.message_bg, self.placeholder_rect)
+        
+        # Calculate animation progress (0-1)
+        if current_time - self.last_animation_time < self.animation_duration:
+            progress = min(1.0, (current_time - self.last_animation_time) / self.animation_duration)
+            # Apply easing function for smoother animation
+            progress = self.ease_out_elastic(progress)
+        else:
+            progress = 1.0
+            
+        # Render text with animation effects
         text_surface = self.placeholder_font.render(self.placeholder_text, True, pygame.Color('#eeca3e'))
         text_shadow = self.placeholder_font.render(self.placeholder_text, True, (0, 0, 0))
-        text_x = WIDTH // 2 - text_surface.get_width() // 2
-        text_y = 6*(HEIGHT/8) + (HEIGHT/8)/2 - text_surface.get_height()//2
         
-        self.screen.blit(text_shadow, (text_x + 2, text_y + 2))
-        self.screen.blit(text_surface, (text_x, text_y))
+        # Calculate animated position and scale
+        text_width = text_surface.get_width() * progress
+        text_height = text_surface.get_height() * progress
+        text_x = WIDTH // 2 - (text_width // 2)
+        text_y = 6*(HEIGHT/8) + (HEIGHT/8)/2 - (text_height//2)
         
-        pygame.display.update(self.placeholder_rect)  
+        # Create a scaled surface
+        scaled_text = pygame.transform.scale(text_surface, (int(text_width), int(text_height)))
+        scaled_shadow = pygame.transform.scale(text_shadow, (int(text_width), int(text_height)))
+        
+        # Draw with animation effects
+        self.screen.blit(scaled_shadow, (text_x + 2*progress, text_y + 2*progress))
+        self.screen.blit(scaled_text, (text_x, text_y))
+        
+        # Add sparkling particles during animation
+        if progress < 1.0:
+            self.draw_sparkle_effect(text_x, text_y, text_width, text_height)
+    
+ 
+    
+    def draw_sparkle_effect(self, x, y, width, height):
+        """Add sparkling particles during text animation"""
+        for _ in range(4):  # Add 3 new particles per frame
+            if random.random() < 0.4:  
+                sparkle_x = x + random.randint(0, int(width))
+                sparkle_y = y + random.randint(0, int(height))
+                self.sparkles.append(SparkleParticle(sparkle_x, sparkle_y))
+        
+        # Update and draw existing sparkles
+        for sparkle in self.sparkles[:]:
+            sparkle.update()
+            sparkle.draw(self.screen)
+            if sparkle.lifetime <= 0:
+                self.sparkles.remove(sparkle)
 
     def get_gradient_color(self, row, total_rows):
         top_color = pygame.Color(30, 60, 180)
@@ -300,7 +344,149 @@ class Pane(object):
             int(top_color.g + (bottom_color.g - top_color.g) * ratio),
             int(top_color.b + (bottom_color.b - top_color.b) * ratio)
         )
-
+    def show_score_notification(self, message_data):
+        """Show animated score notification while keeping teams visible"""
+        start_time = pygame.time.get_ticks()
+        duration = 3000  # 3 seconds
+        original_text = self.placeholder_text
+        
+        # Store current screen state
+        screen_copy = pygame.Surface((WIDTH, HEIGHT))
+        screen_copy.blit(self.screen, (0, 0))
+        
+        # Pre-calculate values for animation
+        current_leader = max(range(len(team_scores)), key=lambda i: team_scores[i])
+        leading_team = team_names[current_leader]
+        team_name = team_names[message_data['team_index']]
+        points = message_data['points']
+        
+        # Determine message
+        if message_data['correct']:
+            if message_data['prev_leader'] != message_data['team_index'] and \
+            team_scores[message_data['team_index']] > team_scores[current_leader]:
+                message = f"NAKAKUHA SI {team_name} NG {points} PUNTOS, SYA NA ANG NANGUNGUNA!"
+                color = pygame.Color('#ffd700')  # Gold for taking lead
+            else:
+                lead = team_scores[current_leader] - sorted(team_scores)[-2]
+                message = f"NAKAKUHA SI {team_name} NG {points} PUNTOS, NANGUNGUNA PA RIN SI {leading_team} NG {lead}"
+                color = pygame.Color('#FFD700')  # Green for correct answer
+        else:
+            if message_data['prev_leader'] == message_data['team_index'] and \
+            current_leader != message_data['team_index']:
+                message = f"BUMABA NG {points} SI {team_name}, NANGUNGUNA NA SI {leading_team}"
+                color = pygame.Color('#ff0000')  # Red for losing lead
+            elif team_scores[message_data['team_index']] == max(team_scores):
+                lead = team_scores[current_leader] - sorted(team_scores)[-2]
+                message = f"BUMABA NG {points} SI {team_name}, LAMANG PA RIN SILA NG {lead}"
+                color = pygame.Color('#ffa500')  # Orange for maintaining lead despite penalty
+            else:
+                deficit = max(team_scores) - team_scores[message_data['team_index']]
+                message = f"BUMABA NG {points} SI {team_name}, KAILANGAN NA NYANG HUMABOL NG {deficit}"
+                color = pygame.Color('#ff6347')  # Tomato red for falling behind
+        
+        # Animation loop
+        while pygame.time.get_ticks() - start_time < duration:
+            current_time = pygame.time.get_ticks() - start_time
+            progress = min(1.0, current_time / duration)
+            
+            # Restore the screen state (including teams)
+            self.screen.blit(screen_copy, (0, 0))
+            
+            # Redraw the grid (without clearing everything)
+            self.draw_grid()
+            
+            # Draw animated notification
+            self.draw_animated_notification(message, color, progress)
+            
+            # Redraw team scores and selection (important!)
+            self.show_score()
+            if selected_team_index >= 0:
+                self.show_selected_box()
+            
+            pygame.display.update()
+            clock.tick(60)
+        
+        # Restore original state
+        self.placeholder_text = original_text
+        self.draw_placeholder_area()
+        # Redraw everything to ensure clean state
+        self.draw_grid()
+        self.show_score()
+        if selected_team_index >= 0:
+            self.show_selected_box()
+        pygame.display.update()
+    
+    def draw_animated_notification(self, message, color, progress):
+        """Draw the notification with various animation effects"""
+        # Background pulse effect
+          # Semi-transparent background (70% opacity)
+        bg_surface = pygame.Surface((WIDTH, int(HEIGHT/8)), pygame.SRCALPHA)
+        pygame.draw.rect(bg_surface, (*color[:3], 180), bg_surface.get_rect())
+        self.screen.blit(bg_surface, (0, 6*(HEIGHT/8)))
+            
+        # Text effects
+        font_size = int(24 + 10 * math.sin(progress * 10))  # Bouncing size
+        font = pygame.font.Font("Fonts/ArchivoBlack-Regular.ttf", font_size)
+        
+        # Text slide-in effect
+        text_x = WIDTH * (1 - progress) if progress < 0.5 else WIDTH // 2
+        if progress >= 0.5:
+            text_x = WIDTH // 2 - (font.size(message)[0] // 2)
+        
+        # Render text with outline
+        text_surface = font.render(message, True, white)
+        outline_surface = font.render(message, True, black)
+        
+        # Draw outline (4 directions)
+        self.screen.blit(outline_surface, (text_x-1, 6*(HEIGHT/8) + (HEIGHT/8)/2 - font_size//2))
+        self.screen.blit(outline_surface, (text_x+1, 6*(HEIGHT/8) + (HEIGHT/8)/2 - font_size//2))
+        self.screen.blit(outline_surface, (text_x, 6*(HEIGHT/8) + (HEIGHT/8)/2 - font_size//2 - 1))
+        self.screen.blit(outline_surface, (text_x, 6*(HEIGHT/8) + (HEIGHT/8)/2 - font_size//2 + 1))
+        
+        # Draw main text
+        self.screen.blit(text_surface, (text_x, 6*(HEIGHT/8) + (HEIGHT/8)/2 - font_size//2))
+        
+        # Add confetti effect for positive events
+        if "NAKAKUHA" in message:
+            self.draw_confetti(progress)
+    
+    def draw_confetti(self, progress):
+        """Draw celebratory confetti animation"""
+        if not hasattr(self, 'confetti_particles'):
+            self.confetti_particles = []
+            # Create initial confetti
+            for _ in range(50):
+                x = random.randint(0, WIDTH)
+                y = random.randint(int(6*(HEIGHT/8)) - 100, int(6*(HEIGHT/8)))
+                color = random.choice([red, green, blue, yellow, white])
+                size = random.randint(2, 8)
+                speed = random.uniform(1, 3)
+                self.confetti_particles.append({
+                    'x': x, 'y': y, 'color': color, 
+                    'size': size, 'speed': speed,
+                    'angle': random.uniform(0, 2*math.pi)
+                })
+        
+        # Update and draw confetti
+        for particle in self.confetti_particles:
+            # Update position
+            particle['y'] += particle['speed']
+            particle['x'] += math.sin(particle['angle']) * 0.5
+            particle['angle'] += 0.1
+            
+            # Draw
+            pygame.draw.rect(self.screen, particle['color'], 
+                            (particle['x'], particle['y'], 
+                             particle['size'], particle['size']))
+            
+            # Reset particles that fall off screen
+            if particle['y'] > HEIGHT:
+                particle['y'] = random.randint(int(6*(HEIGHT/8)) - 200, int(6*(HEIGHT/8)) - 100)
+                particle['x'] = random.randint(0, WIDTH)
+        
+        # Clear confetti when animation is done
+        if progress > 0.9:
+            self.confetti_particles = []
     def draw_grid(self):
         if self.draw_grid_flag:
             self.screen.fill((8, 10, 60))  # Dark backdrop
@@ -308,10 +494,10 @@ class Pane(object):
             self.show_score()
             self.show_selected_box()
 
-        cell_height = int(HEIGHT / 8)  # Cast to integer
+        cell_height = int(HEIGHT / 8)
         cell_width = WIDTH / 6
 
-        # === Step 1: Determine max font size that fits ALL category names ===
+        # Step 1: Adjust header font size to fit all category names
         category_texts = [str(board_matrix[0][col]).upper() for col in range(6)]
         max_font_size = 26
         min_font_size = 12
@@ -325,33 +511,28 @@ class Pane(object):
 
         shared_header_font = pygame.font.Font("Fonts/bernoru-blackultraexpanded.otf", final_font_size)
 
-        # === Step 2: Draw grid ===
-        for row in range(7):  # Changed from 6 to 7 to include the new row
+        # Step 2: Draw each cell
+        for row in range(7):  # Including the placeholder/message row
             for col in range(6):
                 rect = pygame.Rect(col * cell_width, row * cell_height, cell_width, cell_height)
 
                 if row == 0:
-                    # Header cell: Gold background (#eeca3e)
-                    pygame.draw.rect(self.screen, pygame.Color('#eeca3e'), rect)  # Gold header
+                    # Header cell
+                    pygame.draw.rect(self.screen, pygame.Color('#eeca3e'), rect)
 
-                    # Glossy shine (softened for subtlety)
+                    # Shine
                     shine = pygame.Surface((cell_width, cell_height // 2), pygame.SRCALPHA)
                     pygame.draw.rect(shine, (255, 255, 255, 30), shine.get_rect())
                     self.screen.blit(shine, rect.topleft)
 
-                    # Unique underline (gold glow)
-                    underline_rect = pygame.Rect(
-                        rect.left + 10,
-                        rect.bottom - 8,
-                        cell_width - 20,
-                        3
-                    )
-                    pygame.draw.rect(self.screen, pygame.Color('#eeca3e'), underline_rect)  # Glowing gold underline
+                    # Underline
+                    underline_rect = pygame.Rect(rect.left + 10, rect.bottom - 8, cell_width - 20, 3)
+                    pygame.draw.rect(self.screen, pygame.Color('#eeca3e'), underline_rect)
 
-                    # Render header text (soft white for better readability)
+                    # Text and shadow
                     header_text = category_texts[col]
-                    header_text_surface = shared_header_font.render(header_text, True, (245, 245, 245))  # Soft white text
-                    text_shadow = shared_header_font.render(header_text, True, (100, 100, 100))  # Soft gray shadow
+                    header_text_surface = shared_header_font.render(header_text, True, (245, 245, 245))
+                    text_shadow = shared_header_font.render(header_text, True, (100, 100, 100))
 
                     text_x = col * cell_width + cell_width // 2 - header_text_surface.get_width() // 2
                     text_y = row * cell_height + cell_height // 2 - header_text_surface.get_height() // 2
@@ -359,29 +540,28 @@ class Pane(object):
                     self.screen.blit(text_shadow, (text_x + 2, text_y + 2))
                     self.screen.blit(header_text_surface, (text_x, text_y))
 
-                elif row == 6:  # Placeholder row
-                    # Draw background for the placeholder row
+                elif row == 6:
+                    # Placeholder/message row (spans the entire width)
                     placeholder_rect = pygame.Rect(0, row * cell_height, WIDTH, cell_height)
                     pygame.draw.rect(self.screen, (20, 25, 80), placeholder_rect)
                     pygame.draw.rect(self.screen, pygame.Color('#eeca3e'), placeholder_rect, 3)
-                    
-                    # Use the current placeholder text
+
                     text_surface = self.placeholder_font.render(self.placeholder_text, True, pygame.Color('#eeca3e'))
                     text_shadow = self.placeholder_font.render(self.placeholder_text, True, (0, 0, 0))
-                    
+
                     text_x = WIDTH // 2 - text_surface.get_width() // 2
                     text_y = row * cell_height + cell_height // 2 - text_surface.get_height() // 2
-                    
+
                     self.screen.blit(text_shadow, (text_x + 2, text_y + 2))
                     self.screen.blit(text_surface, (text_x, text_y))
-                else:
-                    # Regular cell with gradient color (blue)
-                    start_color = pygame.Color('#181a89')  # Darker blue
-                    end_color = pygame.Color('#12116b')    # Lighter blue
-                    gradient_rect = pygame.Rect(col * cell_width, row * cell_height, cell_width, cell_height)
+                    break  # Only draw one message row, so exit inner loop
 
-                    # Gradient surface for each cell
+                else:
+                    # Regular cell with gradient background
+                    start_color = pygame.Color('#181a89')
+                    end_color = pygame.Color('#12116b')
                     gradient = pygame.Surface((cell_width, cell_height))
+
                     for y in range(cell_height):
                         ratio = y / cell_height
                         color = pygame.Color(
@@ -393,28 +573,24 @@ class Pane(object):
 
                     self.screen.blit(gradient, (col * cell_width, row * cell_height))
 
-                    # Regular gold borders
-                    pygame.draw.rect(self.screen, pygame.Color('#eeca3e'), gradient_rect, 3)  # Gold border
-                    pygame.draw.rect(self.screen, black, gradient_rect, 1)         # Black inner border
+                    pygame.draw.rect(self.screen, pygame.Color('#eeca3e'), rect, 3)
+                    pygame.draw.rect(self.screen, black, rect, 1)
 
                     # Shine strip
-                    shine_rect = pygame.Rect(col * cell_width + 5, row * cell_height + 5,
-                                            cell_width - 10, 15)
+                    shine_rect = pygame.Rect(col * cell_width + 5, row * cell_height + 5, cell_width - 10, 15)
                     shine = pygame.Surface((shine_rect.width, shine_rect.height), pygame.SRCALPHA)
                     pygame.draw.rect(shine, (255, 255, 255, 60), shine.get_rect())
                     self.screen.blit(shine, shine_rect)
 
-                    # Add text to non-header cells (grid cells) and make sure the text is gold
-                    if row > 0:
-                        cell_font = pygame.font.Font("Fonts/bernoru-blackultraexpanded.otf", 18)
-                        grid_text_surface = cell_font.render(str(board_matrix[row][col]), True, pygame.Color('#eeca3e'))  # Gold text
-                        grid_text_rect = grid_text_surface.get_rect(center=(col * cell_width + cell_width // 2,
-                                                                            row * cell_height + cell_height // 2))
-                        self.screen.blit(grid_text_surface, grid_text_rect)
+                    # Grid cell text (gold)
+                    cell_font = pygame.font.Font("Fonts/bernoru-blackultraexpanded.otf", 18)
+                    cell_value = str(board_matrix[row][col])
+                    grid_text_surface = cell_font.render(cell_value, True, pygame.Color('#eeca3e'))
+                    grid_text_rect = grid_text_surface.get_rect(center=(col * cell_width + cell_width // 2,
+                                                                        row * cell_height + cell_height // 2))
+                    self.screen.blit(grid_text_surface, grid_text_rect)
 
         pygame.display.update()
-
-    # ... (rest of the Pane class methods remain the same)
 
 
 
@@ -490,7 +666,54 @@ class Pane(object):
         self.screen.blit(shadow_surface, shadow_rect)
         self.screen.blit(text_surface, text_rect)
 
-
+class SparkleParticle:
+    def __init__(self, x, y):
+        self.x = x
+        self.y = y
+        self.size = random.randint(2, 5)
+        self.color = random.choice([
+            (255, 255, 255),  # White
+            (255, 255, 0),    # Yellow
+            (255, 215, 0),    # Gold
+            (255, 165, 0)     # Orange
+        ])
+        self.speed = random.uniform(0.5, 2)
+        self.angle = random.uniform(0, 2 * math.pi)
+        self.lifetime = random.randint(20, 60)
+        self.max_lifetime = self.lifetime
+        self.rotation = random.uniform(0, 360)
+        self.rotation_speed = random.uniform(-5, 5)
+    
+    def update(self):
+        self.x += math.cos(self.angle) * self.speed
+        self.y += math.sin(self.angle) * self.speed
+        self.lifetime -= 1
+        self.rotation += self.rotation_speed
+        # Fade out as lifetime decreases
+        self.current_alpha = int(255 * (self.lifetime / self.max_lifetime))
+    
+    def draw(self, surface):
+        # Create a surface with per-pixel alpha
+        particle_surface = pygame.Surface((self.size*2, self.size*2), pygame.SRCALPHA)
+        
+        # Draw a star shape
+        points = []
+        for i in range(5):
+            angle = math.radians(self.rotation + i * 72)
+            outer_x = math.cos(angle) * self.size
+            outer_y = math.sin(angle) * self.size
+            inner_angle = angle + math.radians(36)
+            inner_x = math.cos(inner_angle) * (self.size / 2)
+            inner_y = math.sin(inner_angle) * (self.size / 2)
+            points.extend([(self.size + outer_x, self.size + outer_y), 
+                          (self.size + inner_x, self.size + inner_y)])
+        
+        # Draw with fading alpha
+        color_with_alpha = (*self.color[:3], self.current_alpha)
+        pygame.draw.polygon(particle_surface, color_with_alpha, points)
+        
+        # Draw to main surface
+        surface.blit(particle_surface, (self.x - self.size, self.y - self.size))
 class Question(object):
     def __init__(self):
         # Load custom font
@@ -685,6 +908,7 @@ while True:
                 GameOverScreen().reset_game()
                 continue
 
+
     if game_state == "HOME":
         home_screen = HomeScreen()
         home_screen.show()
@@ -725,7 +949,7 @@ while True:
             pygame.mixer.music.play(-1)
             main_game_music_playing = True
 
-        if len(already_selected) == 1:
+        if len(already_selected) == 30:
             game_state = "GAME_OVER"
             continue  
 

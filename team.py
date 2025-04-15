@@ -22,13 +22,18 @@ class CSVSetupScreen:
         self.video_capture = cv2.VideoCapture("Larawan/csv.mp4")
         self.video_fps = self.video_capture.get(cv2.CAP_PROP_FPS)
         
-        # Button rectangles
-        self.csv_button = pygame.Rect(WIDTH//2 - 320, HEIGHT//2 -60, 650, 140)
-        self.edit_button = pygame.Rect(WIDTH//2 - 320, HEIGHT//2 + 100, 650, 140)
+        # Adjusted button rectangles
+        button_width = 650 - 50  # Reduced horizontal length by 50px
+        button_height = 140 - 20  # Reduced vertical height by 20px
         
-        # Navigation buttons
-        self.next_button = pygame.Rect(WIDTH - 150, 20, 120, 120)  # Top right
-        self.prev_button = pygame.Rect(30, 20, 120, 120)  # Top left
+        self.csv_button = pygame.Rect(WIDTH//2 - button_width//2, HEIGHT//2 -10, button_width, button_height)  
+        self.edit_button = pygame.Rect(WIDTH//2 - button_width//2, HEIGHT//2 + 150, button_width, button_height) 
+        
+
+        nav_button_width = 120 * 2  
+        nav_button_height = 120
+        self.next_button = pygame.Rect(WIDTH - nav_button_width - 20, HEIGHT - nav_button_height - 20, nav_button_width, nav_button_height)  
+        self.prev_button = pygame.Rect(20, 20, nav_button_width, nav_button_height)  # Upper left
         
         # Store full path to default CSV
         self.current_csv = os.path.abspath('Katanungan/default-na-tanong.csv')
@@ -52,25 +57,24 @@ class CSVSetupScreen:
             video_frame = self.get_video_frame()
             self.screen.blit(video_frame, (0, 0))
             
-            # Display just the filename for cleaner UI
-            csv_filename = os.path.basename(self.current_csv)
-            csv_display = f"Kasalukuyang Katanungan: {csv_filename}"
-            csv_text = self.font_small.render(csv_display, True, (238, 202, 62))  # Gold color
-            self.screen.blit(csv_text, (WIDTH//2 - csv_text.get_width()//2, 250))
+            # Display just the filename without path or extension
+            csv_filename = os.path.splitext(os.path.basename(self.current_csv))[0]
+            csv_text = self.font_small.render(csv_filename, True, (238, 202, 62))  # Gold color
+            self.screen.blit(csv_text, (WIDTH//2 - csv_text.get_width()//2, 200))  # Centered position
             
             # Draw translucent buttons
             buttons = [
-                (self.csv_button, (150, 150, 150, 128)),
-                (self.edit_button, (150, 150, 150, 128)),
-                (self.next_button, (100, 200, 100, 128)),  # Green
-                (self.prev_button, (200, 100, 100, 128))   # Red
+                (self.csv_button, (150, 150, 150, 0)),
+                (self.edit_button, (150, 150, 150, 0)),
+                (self.next_button, (100, 200, 100, 0)),  # Green
+                (self.prev_button, (200, 100, 100, 0))   # Red
             ]
             
             for rect, color in buttons:
                 s = pygame.Surface((rect.width, rect.height), pygame.SRCALPHA)
                 s.fill(color)
                 self.screen.blit(s, (rect.x, rect.y))
-            
+
             # Event handling
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:

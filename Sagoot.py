@@ -45,6 +45,8 @@ class GameOverScreen:
         
         # Initialize sparkles list (will be populated in show() method)
         self.team_sparkles = []
+        # Load team background image
+        self.team_bg = pygame.image.load('Larawan/Bg5.png').convert()
 
     def show(self, team_names, team_scores):
         num_teams = len(team_names)
@@ -109,6 +111,10 @@ class GameOverScreen:
             # Team names and scores with gold borders
             x = start_x
             for i, (name, score) in enumerate(zip(team_names, team_scores)):
+                # Draw team background
+                team_bg_scaled = pygame.transform.scale(self.team_bg, (column_width, 140))
+                self.screen.blit(team_bg_scaled, (x, y_offset - 10))
+                
                 name_surf = self.font_small.render(name.upper(), True, name_color)
                 score_surf = self.font_medium.render(str(score), True, white)
 
@@ -145,7 +151,6 @@ class GameOverScreen:
                     running = False
 
             clock.tick(30)
-
 
 class QuitScreen:
     def __init__(self):
@@ -210,7 +215,7 @@ class QuitScreen:
         global main_game_music_playing
 
         # Reset game variables
-        load_questions('default-na-tanong.csv')  
+        load_questions('Katanungan/default-na-tanong.csv')  
         p1 = Player()
         show_question_flag = False
         start_flag = False
@@ -666,7 +671,7 @@ class Pane(object):
         self.screen.blit(shadow_surface, shadow_rect)
         self.screen.blit(text_surface, text_rect)
 
-class SparkleParticle:
+class SparkleParticles:
     def __init__(self, x, y):
         self.x = x
         self.y = y
@@ -908,37 +913,42 @@ while True:
                 GameOverScreen().reset_game()
                 continue
 
-
     if game_state == "HOME":
         home_screen = HomeScreen()
         home_screen.show()
         pygame.display.update()
-
-        # Wait for click to proceed to tutorial
+        
+        # Home screen only has next button
         game_state = "TUTORIAL"
 
     elif game_state == "TUTORIAL":
         tutorial = TutorialScreen()
-        tutorial.show()
+        result = tutorial.show()
         pygame.display.update()
-
-        # Wait for click to proceed to CSV setup
+        
         game_state = "CSV_SETUP"
+
 
     elif game_state == "CSV_SETUP":
         csv_screen = CSVSetupScreen()
-        if csv_screen.show():  # Returns True when user clicks Next
-            # Proceed to team setup after CSV is configured
-            game_state = "TEAM_SETUP"
+        result = csv_screen.show()
         pygame.display.update()
+        
+        if result == "NEXT":
+            game_state = "TEAM_SETUP"
+        elif result == "PREVIOUS":
+            game_state = "TUTORIAL"
 
     elif game_state == "TEAM_SETUP":
         team_setup = TeamSetupScreen()
-        team_names, team_scores = team_setup.show()
+        result, team_names, team_scores = team_setup.show()
         pygame.display.update()
+        
+        if result == "NEXT":
+            game_state = "MAIN_GAME"
+        elif result == "PREVIOUS":
+            game_state = "CSV_SETUP"
 
-        # Wait for click to proceed to main game
-        game_state = "MAIN_GAME"
 
     elif game_state == "MAIN_GAME":
         click_count = 0
@@ -949,7 +959,7 @@ while True:
             pygame.mixer.music.play(-1)
             main_game_music_playing = True
 
-        if len(already_selected) == 30:
+        if len(already_selected) == 3:
             game_state = "GAME_OVER"
             continue  
 

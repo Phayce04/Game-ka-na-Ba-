@@ -7,49 +7,57 @@ from tkinter import filedialog, Tk
 from loadquestion import load_questions
 from utils import board_matrix, q, MAX_TIME_LIMIT, WIDTH, HEIGHT, white, grey, black, blue, red, green, yellow, clock
 
-
 class CSVSetupScreen:
     def __init__(self):
         self.screen = pygame.display.set_mode((WIDTH, HEIGHT))
-        self.font_large = pygame.font.SysFont('Arial', 48)
-        self.font_medium = pygame.font.SysFont('Arial', 36)
-        self.font_small = pygame.font.SysFont('Arial', 24)
         
-        # Add CSV control buttons
-        self.csv_button = pygame.Rect(WIDTH//2 - 150, HEIGHT//2 - 60, 300, 50)
-        self.edit_button = pygame.Rect(WIDTH//2 - 150, HEIGHT//2 + 20, 300, 50)
-        self.next_button = pygame.Rect(WIDTH//2 - 100, HEIGHT - 100, 200, 50)
+        # Font loading with fallback
+        try:
+            self.font_small = pygame.font.Font("Fonts/ArchivoBlack-Regular.ttf", 36)
+        except:
+            self.font_small = pygame.font.SysFont('Arial', 24)
         
-        self.current_csv = 'default-na-tanong.csv'  # Default CSV file
+        # Background setup
+        self.background = pygame.image.load("Larawan/question.png")
+        self.background = pygame.transform.scale(self.background, (WIDTH, HEIGHT))
+        
+        # Button rectangles
+        self.csv_button = pygame.Rect(WIDTH//2 - 320, HEIGHT//2 -60, 650, 140)
+        self.edit_button = pygame.Rect(WIDTH//2 - 320, HEIGHT//2 + 100, 650, 140)
+        
+        # Navigation buttons
+        self.next_button = pygame.Rect(WIDTH - 150, 20, 120, 120)  # Top right
+        self.prev_button = pygame.Rect(30, 20, 120, 120)  # Top left
+        
+        # Store full path to default CSV
+        self.current_csv = os.path.abspath('default-na-tanong.csv')
 
     def show(self):
         running = True
         
         while running:
-            self.screen.fill(white)
+            self.screen.blit(self.background, (0, 0))
             
-            # Title
-            title = self.font_large.render("CSV Setup", True, blue)
-            self.screen.blit(title, (WIDTH//2 - title.get_width()//2, 50))
+            # Display just the filename for cleaner UI
+            csv_filename = os.path.basename(self.current_csv)
+            csv_display = f"Kasalukuyang Katanungan: {csv_filename}"
+            csv_text = self.font_small.render(csv_display, True, (238, 202, 62))  
+            self.screen.blit(csv_text, (WIDTH//2 - csv_text.get_width()//2, 250))
             
-            # Current CSV display
-            csv_text = self.font_small.render(f"Current CSV: {self.current_csv}", True, black)
-            self.screen.blit(csv_text, (WIDTH//2 - csv_text.get_width()//2, 120))
+            # Draw translucent buttons
+            buttons = [
+                (self.csv_button, (150, 150, 150, 128)),
+                (self.edit_button, (150, 150, 150, 128)),
+                (self.next_button, (100, 200, 100, 128)),  # Green
+                (self.prev_button, (200, 100, 100, 128))   # Red
+            ]
             
-            # CSV control buttons
-            pygame.draw.rect(self.screen, grey, self.csv_button)
-            csv_btn_text = self.font_medium.render("Select CSV", True, black)
-            self.screen.blit(csv_btn_text, (self.csv_button.x + 50, self.csv_button.y + 10))
+            for rect, color in buttons:
+                s = pygame.Surface((rect.width, rect.height), pygame.SRCALPHA)
+                s.fill(color)
+                self.screen.blit(s, (rect.x, rect.y))
             
-            pygame.draw.rect(self.screen, grey, self.edit_button)
-            edit_btn_text = self.font_medium.render("Edit CSV", True, black)
-            self.screen.blit(edit_btn_text, (self.edit_button.x + 70, self.edit_button.y + 10))
-            
-            # Next button
-            pygame.draw.rect(self.screen, green, self.next_button)
-            next_text = self.font_medium.render("Next", True, white)
-            self.screen.blit(next_text, (self.next_button.x + 60, self.next_button.y + 10))
-            
+            # Event handling
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     pygame.quit()
@@ -61,15 +69,17 @@ class CSVSetupScreen:
                     elif self.edit_button.collidepoint(event.pos):
                         self.edit_csv_file()
                     elif self.next_button.collidepoint(event.pos):
-                        return True  # Proceed to team setup
+                        return "NEXT"
+                    elif self.prev_button.collidepoint(event.pos):
+                        return "PREVIOUS"
             
             pygame.display.flip()
             clock.tick(30)
-    
+
     def select_csv_file(self):
         """Open file dialog to select and validate CSV"""
         root = Tk()
-        root.withdraw()  # Hide the main window
+        root.withdraw()
         file_path = filedialog.askopenfilename(
             title="Select Questions CSV",
             filetypes=[("CSV Files", "*.csv"), ("All Files", "*.*")]
@@ -77,7 +87,7 @@ class CSVSetupScreen:
 
         if file_path:
             try:
-                # Load and validate CSV
+                # Validate CSV structure
                 df = pd.read_csv(file_path)
                 required_cols = {"Row", "Col", "Question", "Answer", "Categories"}
                 missing = required_cols - set(df.columns)
@@ -119,18 +129,19 @@ class CSVSetupScreen:
                     missing = sorted(list(required_coords - actual_coords))
                     raise ValueError(f"Missing Q/A at row {missing[0][0]}, col {missing[0][1]}.")
 
-                # If all validations pass, load the questions
-                self.current_csv = os.path.basename(file_path)
+                # Store full path and load questions
+                self.current_csv = os.path.abspath(file_path)
                 global q, board_matrix
-                q, board_matrix = load_questions(file_path)
-                print("CSV loaded and validated successfully.")
+                q, board_matrix = load_questions(self.current_csv)
+                print(f"CSV loaded successfully from: {self.current_csv}")
 
             except Exception as e:
                 print(f"Error loading CSV: {e}")
                 self.show_popup(f"Invalid CSV:\n{e}")
 
     def show_popup(self, message, duration=2000):
-        # Create a dark translucent background
+        """Display a temporary popup message"""
+        # Create overlay
         overlay = pygame.Surface((WIDTH, HEIGHT))
         overlay.set_alpha(180)
         overlay.fill((0, 0, 0))
@@ -141,6 +152,7 @@ class CSVSetupScreen:
         pygame.draw.rect(self.screen, (0, 0, 139), popup_rect)  # Dark blue
         pygame.draw.rect(self.screen, (255, 215, 0), popup_rect, 3)  # Gold border
 
+        # Render message
         font = pygame.font.SysFont("Arial", 24)
         lines = message.split("\n")
         for i, line in enumerate(lines):
@@ -152,12 +164,15 @@ class CSVSetupScreen:
         pygame.time.delay(duration)
 
     def edit_csv_file(self):
-        """Open in-game CSV editor"""
-        editor = CSVEditor(self.current_csv)
-        editor.run()
-        # Reload questions after editing
-        load_questions(self.current_csv)
-
+        """Open the CSV editor with the current file"""
+        try:
+            editor = CSVEditor(self.current_csv)
+            editor.run()
+            # Reload questions after editing
+            load_questions(self.current_csv)
+        except Exception as e:
+            print(f"Error editing CSV: {e}")
+            self.show_popup(f"Failed to edit CSV:\n{e}")
 
 class TeamSetupScreen:
     def __init__(self):
@@ -168,7 +183,10 @@ class TeamSetupScreen:
         self.team_count = 2
         self.team_inputs = []
         self.active_input = None
-        self.done_button = pygame.Rect(WIDTH//2 - 100, HEIGHT - 60, 200, 50)
+        
+        # Navigation button (only previous needed)
+        self.prev_button = pygame.Rect(30, 20, 120, 120)  # Top left (red)
+        self.done_button = pygame.Rect(WIDTH//2 - 100, HEIGHT - 100, 200, 50)  # Start Game button
 
     def show(self):
         running = True
@@ -213,7 +231,12 @@ class TeamSetupScreen:
                 text_surface = self.font_small.render(self.team_inputs[i], True, black)
                 self.screen.blit(text_surface, (box.x + 5, box.y + 10))
             
-            # Done button
+            # Previous button (translucent red)
+            s = pygame.Surface((self.prev_button.width, self.prev_button.height), pygame.SRCALPHA)
+            s.fill((200, 100, 100, 128))  # Translucent red
+            self.screen.blit(s, (self.prev_button.x, self.prev_button.y))
+            
+            # Start Game button
             pygame.draw.rect(self.screen, green, self.done_button)
             done_text = self.font_medium.render("Start Game", True, white)
             self.screen.blit(done_text, (self.done_button.x + 20, self.done_button.y + 10))
@@ -236,23 +259,22 @@ class TeamSetupScreen:
                         if box.collidepoint(event.pos):
                             self.active_input = i
                     
-                    # Check done button
+                    # Check previous button
+                    if self.prev_button.collidepoint(event.pos):
+                        return "PREVIOUS", None, None
+                    
+                    # Check Start Game button
                     if self.done_button.collidepoint(event.pos):
                         if all(name.strip() != "" for name in self.team_inputs):
-                            # Return the team names and scores to the caller
-                            team_names = self.team_inputs
-                            team_scores = [0] * self.team_count
-                            return team_names, team_scores
+                            return "NEXT", self.team_inputs, [0] * self.team_count
                 
                 if event.type == pygame.KEYDOWN and self.active_input is not None:
                     if event.key == pygame.K_BACKSPACE:
                         self.team_inputs[self.active_input] = self.team_inputs[self.active_input][:-1]
                     else:
-                        if (
-                            len(self.team_inputs[self.active_input]) < 6
-                            and event.unicode.isprintable()
-                            and not event.unicode.isspace()
-                        ):
+                        if (len(self.team_inputs[self.active_input]) < 6 and 
+                           event.unicode.isprintable() and 
+                           not event.unicode.isspace()):
                             self.team_inputs[self.active_input] += event.unicode
 
             pygame.display.flip()

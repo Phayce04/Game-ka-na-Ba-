@@ -873,7 +873,7 @@ class Cell(object):
         self.text=''
 
 
-load_questions('default-na-tanong.csv')  
+load_questions('Katanungan/default-na-tanong.csv')  
 p1 = Player()
 show_question_flag=False
 start_flag = False

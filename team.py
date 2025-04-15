@@ -1,6 +1,7 @@
 import pygame
 import os, sys
 import pandas as pd
+import cv2
 
 from csveditor import CSVEditor
 from tkinter import filedialog, Tk
@@ -11,15 +12,15 @@ class CSVSetupScreen:
     def __init__(self):
         self.screen = pygame.display.set_mode((WIDTH, HEIGHT))
         
-        # Font loading with fallback
+        # Font loading with arcade font
         try:
-            self.font_small = pygame.font.Font("Fonts/ArchivoBlack-Regular.ttf", 36)
+            self.font_small = pygame.font.Font("Fonts/ARCADE_N.TTF", 36)
         except:
             self.font_small = pygame.font.SysFont('Arial', 24)
         
-        # Background setup
-        self.background = pygame.image.load("Larawan/question.png")
-        self.background = pygame.transform.scale(self.background, (WIDTH, HEIGHT))
+        # Video background setup
+        self.video_capture = cv2.VideoCapture("Larawan/csv.mp4")
+        self.video_fps = self.video_capture.get(cv2.CAP_PROP_FPS)
         
         # Button rectangles
         self.csv_button = pygame.Rect(WIDTH//2 - 320, HEIGHT//2 -60, 650, 140)
@@ -32,16 +33,29 @@ class CSVSetupScreen:
         # Store full path to default CSV
         self.current_csv = os.path.abspath('Katanungan/default-na-tanong.csv')
 
+    def get_video_frame(self):
+        ret, frame = self.video_capture.read()
+        if not ret or frame is None:
+            self.video_capture.set(cv2.CAP_PROP_POS_FRAMES, 0)
+            ret, frame = self.video_capture.read()
+            if not ret or frame is None:
+                return pygame.Surface((WIDTH, HEIGHT))
+        frame = cv2.resize(frame, (WIDTH, HEIGHT))
+        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        return pygame.surfarray.make_surface(frame.swapaxes(0, 1))
+
     def show(self):
         running = True
         
         while running:
-            self.screen.blit(self.background, (0, 0))
+            # Draw video background
+            video_frame = self.get_video_frame()
+            self.screen.blit(video_frame, (0, 0))
             
             # Display just the filename for cleaner UI
             csv_filename = os.path.basename(self.current_csv)
             csv_display = f"Kasalukuyang Katanungan: {csv_filename}"
-            csv_text = self.font_small.render(csv_display, True, (238, 202, 62))  
+            csv_text = self.font_small.render(csv_display, True, (238, 202, 62))  # Gold color
             self.screen.blit(csv_text, (WIDTH//2 - csv_text.get_width()//2, 250))
             
             # Draw translucent buttons
@@ -74,8 +88,10 @@ class CSVSetupScreen:
                         return "PREVIOUS"
             
             pygame.display.flip()
-            clock.tick(30)
-
+            clock.tick(self.video_fps if self.video_fps > 0 else 30)
+    def __del__(self):
+        """Clean up video resources"""
+        self.video_capture.release()
     def select_csv_file(self):
         """Open file dialog to select and validate CSV"""
         root = Tk()

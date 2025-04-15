@@ -33,21 +33,6 @@ class Player(object):
     def set_score(self,score):
         self.score = score
 
-if not pygame.font: print ('Warning, fonts disabled')
-if not pygame.mixer: print ('Warning, sound disabled')
-import pygame
-import random
-import sys
-import cv2
-from sparkle import SparkleParticle
-from utils import WIDTH, HEIGHT, white, clock
-
-import pygame
-import sys
-import random
-import cv2
-from sparkle import SparkleParticle  # Optional, can remove if unused
-from utils import WIDTH, HEIGHT, white, clock
 
 class GameOverScreen:
     def __init__(self):

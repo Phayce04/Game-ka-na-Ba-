@@ -267,231 +267,130 @@ class Pane(object):
         self.font = pygame.font.Font("Fonts/bernoru-blackultraexpanded.otf", 15)
         self.score_font = pygame.font.Font("Fonts/bernoru-blackultraexpanded.otf", 17)
         self.placeholder_font = pygame.font.Font("Fonts/ArchivoBlack-Regular.ttf", 24)
-        self.placeholder_rect = pygame.Rect(0, 6*(HEIGHT/8), WIDTH, HEIGHT/8)  # 7th row
-
-        # Initialize with default placeholder text
         self.placeholder_text = "SELECT A TEAM"
-        self.message_bg = pygame.image.load("Larawan/BG2.png").convert_alpha()
-        self.message_bg = pygame.transform.scale(self.message_bg, (WIDTH, int(HEIGHT/8)))
-        
-        self.animation_time = 0
-        self.current_scale = 0
-        self.target_scale = 1
-        self.animation_duration = 500  # ms
-        self.last_animation_time = 0
-        # Update the placeholder rect to match the image area
-        self.placeholder_rect = pygame.Rect(0, 6*(HEIGHT/8), WIDTH, HEIGHT/8)
+        self.placeholder_rect = pygame.Rect(0, 6 * (HEIGHT / 8), WIDTH, HEIGHT / 8)
+        self.message_bg = pygame.image.load("Larawan/BG2.png").convert()
+        self.message_bg = pygame.transform.scale(self.message_bg, (WIDTH, int(HEIGHT / 8)))
+
         self.screen = pygame.display.set_mode((WIDTH, HEIGHT), 0, 32)
         self.screen.fill(white)
         self.draw_grid_flag = True
+        self.sparkles = []
+
         pygame.display.update()
 
     def draw_placeholder_area(self):
-        """Draw the message area with animated text"""
-        current_time = pygame.time.get_ticks()
-        
-        # Draw the background image
         self.screen.blit(self.message_bg, self.placeholder_rect)
-        
-        # Calculate animation progress (0-1)
-        if current_time - self.last_animation_time < self.animation_duration:
-            progress = min(1.0, (current_time - self.last_animation_time) / self.animation_duration)
-            # Apply easing function for smoother animation
-            progress = self.ease_out_elastic(progress)
-        else:
-            progress = 1.0
-            
-        # Render text with animation effects
+        self.placeholder_bg_copy = self.screen.subsurface(self.placeholder_rect).copy()
+
+        # Animate text scale (simplified)
         text_surface = self.placeholder_font.render(self.placeholder_text, True, pygame.Color('#eeca3e'))
         text_shadow = self.placeholder_font.render(self.placeholder_text, True, (0, 0, 0))
-        
-        # Calculate animated position and scale
-        text_width = text_surface.get_width() * progress
-        text_height = text_surface.get_height() * progress
-        text_x = WIDTH // 2 - (text_width // 2)
-        text_y = 6*(HEIGHT/8) + (HEIGHT/8)/2 - (text_height//2)
-        
-        # Create a scaled surface
-        scaled_text = pygame.transform.scale(text_surface, (int(text_width), int(text_height)))
-        scaled_shadow = pygame.transform.scale(text_shadow, (int(text_width), int(text_height)))
-        
-        # Draw with animation effects
-        self.screen.blit(scaled_shadow, (text_x + 2*progress, text_y + 2*progress))
-        self.screen.blit(scaled_text, (text_x, text_y))
-        
-        # Add sparkling particles during animation
-        if progress < 1.0:
-            self.draw_sparkle_effect(text_x, text_y, text_width, text_height)
-    
- 
-    
-    def draw_sparkle_effect(self, x, y, width, height):
-        """Add sparkling particles during text animation"""
-        for _ in range(4):  # Add 3 new particles per frame
-            if random.random() < 0.4:  
-                sparkle_x = x + random.randint(0, int(width))
-                sparkle_y = y + random.randint(0, int(height))
-                self.sparkles.append(SparkleParticle(sparkle_x, sparkle_y))
-        
-        # Update and draw existing sparkles
-        for sparkle in self.sparkles[:]:
-            sparkle.update()
-            sparkle.draw(self.screen)
-            if sparkle.lifetime <= 0:
-                self.sparkles.remove(sparkle)
 
-    def get_gradient_color(self, row, total_rows):
-        top_color = pygame.Color(30, 60, 180)
-        bottom_color = pygame.Color(138, 43, 226)
-        ratio = row / total_rows
-        return (
-            int(top_color.r + (bottom_color.r - top_color.r) * ratio),
-            int(top_color.g + (bottom_color.g - top_color.g) * ratio),
-            int(top_color.b + (bottom_color.b - top_color.b) * ratio)
-        )
+        x = WIDTH // 2 - text_surface.get_width() // 2
+        y = self.placeholder_rect.centery - text_surface.get_height() // 2
+
+        self.screen.blit(text_shadow, (x + 2, y + 2))
+        self.screen.blit(text_surface, (x, y))
+
     def show_score_notification(self, message_data):
-        """Show animated score notification while keeping teams visible"""
+        duration = 3000
         start_time = pygame.time.get_ticks()
-        duration = 3000  # 3 seconds
+
         original_text = self.placeholder_text
-        
-        # Store current screen state
-        screen_copy = pygame.Surface((WIDTH, HEIGHT))
-        screen_copy.blit(self.screen, (0, 0))
-        
-        # Pre-calculate values for animation
+        self.placeholder_text = ""  # Temporarily clear it to not draw under notification
+
+        # Determine message
         current_leader = max(range(len(team_scores)), key=lambda i: team_scores[i])
         leading_team = team_names[current_leader]
         team_name = team_names[message_data['team_index']]
         points = message_data['points']
-        
-        # Determine message
+
         if message_data['correct']:
             if message_data['prev_leader'] != message_data['team_index'] and \
-            team_scores[message_data['team_index']] > team_scores[current_leader]:
-                message = f"NAKAKUHA SI {team_name} NG {points} PUNTOS, SYA NA ANG NANGUNGUNA!"
-                color = pygame.Color('#ffd700')  # Gold for taking lead
+                    team_scores[message_data['team_index']] > team_scores[current_leader]:
+                message = f"NAKAKUHA ANG {team_name} NG {points} PUNTOS, SILA NA ANG NANGUNGUNA!"
+                color = pygame.Color('#ffd700')
             else:
                 lead = team_scores[current_leader] - sorted(team_scores)[-2]
-                message = f"NAKAKUHA SI {team_name} NG {points} PUNTOS, NANGUNGUNA PA RIN SI {leading_team} NG {lead}"
-                color = pygame.Color('#FFD700')  # Green for correct answer
+                message = f"NAKAKUHA ANG {team_name} NG {points} PUNTOS, NANGUNGUNA PA RIN ANG {leading_team} NG {lead}"
+                color = pygame.Color('#FFD700')
         else:
             if message_data['prev_leader'] == message_data['team_index'] and \
-            current_leader != message_data['team_index']:
-                message = f"BUMABA NG {points} SI {team_name}, NANGUNGUNA NA SI {leading_team}"
-                color = pygame.Color('#ff0000')  # Red for losing lead
+                    current_leader != message_data['team_index']:
+                message = f"BUMABA NG {points} ANG {team_name}, NANGUNGUNA NA ANG {leading_team}"
+                color = pygame.Color('#ff0000')
             elif team_scores[message_data['team_index']] == max(team_scores):
                 lead = team_scores[current_leader] - sorted(team_scores)[-2]
-                message = f"BUMABA NG {points} SI {team_name}, LAMANG PA RIN SILA NG {lead}"
-                color = pygame.Color('#ffa500')  # Orange for maintaining lead despite penalty
+                message = f"BUMABA NG {points} ANG {team_name}, LAMANG PA RIN SILA NG {lead}"
+                color = pygame.Color('#ffa500')
             else:
                 deficit = max(team_scores) - team_scores[message_data['team_index']]
-                message = f"BUMABA NG {points} SI {team_name}, KAILANGAN NA NYANG HUMABOL NG {deficit}"
-                color = pygame.Color('#ff6347')  # Tomato red for falling behind
-        
-        # Animation loop
+                message = f"BUMABA NG {points} ANG {team_name}, KAILANGAN NA NIYANG HUMABOL NG {deficit}"
+                color = pygame.Color('#ff6347')
+
+        # Draw static message once
+        pygame.draw.rect(self.screen, color, self.placeholder_rect)
+        font = pygame.font.Font("Fonts/ArchivoBlack-Regular.ttf", 32)
+        text_surface = font.render(message, True, white)
+        shadow_surface = font.render(message, True, black)
+        x = WIDTH // 2 - text_surface.get_width() // 2
+        y = self.placeholder_rect.centery - text_surface.get_height() // 2
+        self.screen.blit(shadow_surface, (x + 2, y + 2))
+        self.screen.blit(text_surface, (x, y))
+
+        if selected_team_index >= 0:
+            self.show_selected_box()
+
+        pygame.display.update(self.placeholder_rect)
+
+        # Simple time delay instead of animation loop
         while pygame.time.get_ticks() - start_time < duration:
-            current_time = pygame.time.get_ticks() - start_time
-            progress = min(1.0, current_time / duration)
-            
-            # Restore the screen state (including teams)
-            self.screen.blit(screen_copy, (0, 0))
-            
-            # Redraw the grid (without clearing everything)
-            self.draw_grid()
-            
-            # Draw animated notification
-            self.draw_animated_notification(message, color, progress)
-            
-            # Redraw team scores and selection (important!)
-            self.show_score()
-            if selected_team_index >= 0:
-                self.show_selected_box()
-            
-            pygame.display.update()
             clock.tick(60)
-        
-        # Restore original state
+
         self.placeholder_text = original_text
         self.draw_placeholder_area()
-        # Redraw everything to ensure clean state
         self.draw_grid()
         self.show_score()
         if selected_team_index >= 0:
             self.show_selected_box()
         pygame.display.update()
-    
-    def draw_animated_notification(self, message, color, progress):
-        """Draw the notification with various animation effects"""
-        # Background pulse effect
-          # Semi-transparent background (70% opacity)
-        bg_surface = pygame.Surface((WIDTH, int(HEIGHT/8)), pygame.SRCALPHA)
-        pygame.draw.rect(bg_surface, (*color[:3], 180), bg_surface.get_rect())
-        self.screen.blit(bg_surface, (0, 6*(HEIGHT/8)))
-            
-        # Text effects
-        font_size = int(24 + 10 * math.sin(progress * 10))  # Bouncing size
-        font = pygame.font.Font("Fonts/ArchivoBlack-Regular.ttf", font_size)
-        
-        # Text slide-in effect
-        text_x = WIDTH * (1 - progress) if progress < 0.5 else WIDTH // 2
-        if progress >= 0.5:
-            text_x = WIDTH // 2 - (font.size(message)[0] // 2)
-        
-        # Render text with outline
-        text_surface = font.render(message, True, white)
-        outline_surface = font.render(message, True, black)
-        
-        # Draw outline (4 directions)
-        self.screen.blit(outline_surface, (text_x-1, 6*(HEIGHT/8) + (HEIGHT/8)/2 - font_size//2))
-        self.screen.blit(outline_surface, (text_x+1, 6*(HEIGHT/8) + (HEIGHT/8)/2 - font_size//2))
-        self.screen.blit(outline_surface, (text_x, 6*(HEIGHT/8) + (HEIGHT/8)/2 - font_size//2 - 1))
-        self.screen.blit(outline_surface, (text_x, 6*(HEIGHT/8) + (HEIGHT/8)/2 - font_size//2 + 1))
-        
-        # Draw main text
-        self.screen.blit(text_surface, (text_x, 6*(HEIGHT/8) + (HEIGHT/8)/2 - font_size//2))
-        
-        # Add confetti effect for positive events
-        if "NAKAKUHA" in message:
-            self.draw_confetti(progress)
-    
+
+
     def draw_confetti(self, progress):
-        """Draw celebratory confetti animation"""
-        if not hasattr(self, 'confetti_particles'):
-            self.confetti_particles = []
-            # Create initial confetti
-            for _ in range(50):
-                x = random.randint(0, WIDTH)
-                y = random.randint(int(6*(HEIGHT/8)) - 100, int(6*(HEIGHT/8)))
-                color = random.choice([red, green, blue, yellow, white])
-                size = random.randint(2, 8)
-                speed = random.uniform(1, 3)
-                self.confetti_particles.append({
-                    'x': x, 'y': y, 'color': color, 
-                    'size': size, 'speed': speed,
-                    'angle': random.uniform(0, 2*math.pi)
-                })
-        
-        # Update and draw confetti
+        for _ in range(2):
+            x = random.randint(self.placeholder_rect.left, self.placeholder_rect.right)
+            y = random.randint(self.placeholder_rect.top - 30, self.placeholder_rect.top)
+            color = random.choice([red, green, blue, yellow, white])
+            size = random.randint(2, 6)
+            speed = random.uniform(1, 3)
+            self.confetti_particles.append({
+                'x': x, 'y': y, 'color': color, 'size': size, 'speed': speed,
+                'angle': random.uniform(0, 2 * math.pi)
+            })
+
         for particle in self.confetti_particles:
-            # Update position
             particle['y'] += particle['speed']
             particle['x'] += math.sin(particle['angle']) * 0.5
             particle['angle'] += 0.1
-            
-            # Draw
-            pygame.draw.rect(self.screen, particle['color'], 
-                            (particle['x'], particle['y'], 
-                             particle['size'], particle['size']))
-            
-            # Reset particles that fall off screen
-            if particle['y'] > HEIGHT:
-                particle['y'] = random.randint(int(6*(HEIGHT/8)) - 200, int(6*(HEIGHT/8)) - 100)
-                particle['x'] = random.randint(0, WIDTH)
-        
-        # Clear confetti when animation is done
-        if progress > 0.9:
+
+            if self.placeholder_rect.collidepoint(particle['x'], particle['y']):
+                pygame.draw.rect(
+                    self.screen,
+                    particle['color'],
+                    (particle['x'], particle['y'], particle['size'], particle['size'])
+                )
+
+            if particle['y'] > self.placeholder_rect.bottom:
+                particle['y'] = self.placeholder_rect.top - random.randint(20, 100)
+                particle['x'] = random.randint(self.placeholder_rect.left, self.placeholder_rect.right)
+
+        if progress >= 1.0:
             self.confetti_particles = []
+
+
+
+
     def draw_grid(self):
         if self.draw_grid_flag:
             self.screen.fill((8, 10, 60))  # Dark backdrop
@@ -1008,16 +907,9 @@ while True:
                         message = f"BUMABA NG {points} SI {team_name}, KAILANGAN NA NYANG HUMABOL NG {deficit}"
                 
                 # Show message
-                original_text = pane1.placeholder_text
-                pane1.placeholder_text = message
-                pane1.draw_placeholder_area()
-                pygame.display.update()
-                
-                # Wait for 3 seconds then revert
-                pygame.time.delay(3000)
-                pane1.placeholder_text = original_text
-                pane1.draw_placeholder_area()
+                pane1.show_score_notification(message_data)
                 show_status_message = False
+
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     pygame.quit()

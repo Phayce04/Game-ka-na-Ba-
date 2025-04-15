@@ -1,60 +1,48 @@
 import pygame
 import os, sys
+import cv2
 
 from utils import board_matrix, q, MAX_TIME_LIMIT, WIDTH, HEIGHT, white, grey, black, blue, red, green, yellow, clock
+
+def resource_path(relative_path):
+    if hasattr(sys, '_MEIPASS'):
+        return os.path.join(sys._MEIPASS, relative_path)
+    return os.path.join(os.path.abspath("."), relative_path)
 
 class TutorialScreen:
     def __init__(self):
         self.screen = pygame.display.set_mode((WIDTH, HEIGHT))
         self.font = pygame.font.SysFont('Arial', 36)
-        try:
-            # Replace 'tutorial.jpg' with your actual image file
-            self.tutorial_image = pygame.image.load('Larawan/TUTORIAL.png')
-            self.tutorial_image = pygame.transform.scale(self.tutorial_image, (WIDTH, HEIGHT))
-        except:
-            # Fallback if image doesn't load
-            self.tutorial_image = None
-            print("Could not load tutorial image")
-        
-        self.continue_text = self.font.render("Click anywhere to continue", True, white)
-        self.continue_rect = self.continue_text.get_rect(center=(WIDTH//2, HEIGHT-50))
-        
+
+        # Load video as background
+        self.video = cv2.VideoCapture(resource_path('Larawan/tutorial.mp4'))
+
+    def get_video_frame(self):
+        ret, frame = self.video.read()
+        if not ret or frame is None:
+            self.video.set(cv2.CAP_PROP_POS_FRAMES, 0)  # Loop video
+            ret, frame = self.video.read()
+            if not ret or frame is None:
+                return pygame.Surface((WIDTH, HEIGHT))  # Fallback
+        frame = cv2.resize(frame, (WIDTH, HEIGHT))
+        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        return pygame.surfarray.make_surface(frame.swapaxes(0, 1))
+
     def show(self):
         running = True
         while running:
-            self.screen.fill(black)
-            
-            if self.tutorial_image:
-                self.screen.blit(self.tutorial_image, (0, 0))
-            else:
-                # Fallback content if image didn't load
-                title = self.font.render("Tutorial", True, white)
-                self.screen.blit(title, (WIDTH//2 - title.get_width()//2, 50))
-                
-                instructions = [
-                    "1. Select a team by clicking on their name",
-                    "2. Click on a question value to see the question",
-                    "3. Click again to see the answer",
-                    "4. Click the green button if the team answered correctly",
-                    "5. Click the red button if the answer was wrong",
-                    "6. The team with the highest score wins!"
-                ]
-                
-                for i, line in enumerate(instructions):
-                    text = self.font.render(line, True, white)
-                    self.screen.blit(text, (100, 150 + i*50))
-            
-            # Blinking "continue" text
-            if pygame.time.get_ticks() % 1000 < 500:
-                self.screen.blit(self.continue_text, self.continue_rect)
-            
+            # Draw video frame
+            video_frame = self.get_video_frame()
+            self.screen.blit(video_frame, (0, 0))
+
             pygame.display.flip()
-            
+
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
+                    self.video.release()
                     pygame.quit()
                     sys.exit()
                 if event.type == pygame.MOUSEBUTTONDOWN:
                     running = False
-            
+
             clock.tick(30)

@@ -14,6 +14,7 @@ from loadquestion import load_questions
 from utils import board_matrix, q, MAX_TIME_LIMIT, WIDTH, HEIGHT, white, grey, black, blue, red, green, yellow, clock
 from sparkle import SparkleParticle
 from pygame.locals import *
+import cv2
 
 pygame.init()
 answered_img = pygame.image.load("Larawan/parangpiattos.png")
@@ -623,133 +624,154 @@ class Question(object):
         # Load custom font
         self.font = pygame.font.Font("Fonts/bernoru-blackultraexpanded.otf", 32)
 
-        # Load question background image
-        self.question_bg = pygame.image.load("Larawan/cards.png")
-        self.question_bg = pygame.transform.scale(self.question_bg, (WIDTH, HEIGHT))
-
-        # Load answer background image (different from question)
-        self.answer_bg = pygame.image.load("Larawan/answers.png")  # Different image
-        self.answer_bg = pygame.transform.scale(self.answer_bg, (WIDTH, HEIGHT))
+        # Load video backgrounds
+        self.question_video = cv2.VideoCapture("Larawan/question.mp4")
+        self.answer_video = cv2.VideoCapture("Larawan/answer.mp4")
 
         pygame.display.set_caption('Box Test')
         self.screen = pygame.display.set_mode((WIDTH, HEIGHT + 200), 0, 32)
+
+    def get_video_frame(self, video_capture):
+        ret, frame = video_capture.read()
+        if not ret or frame is None:
+            video_capture.set(cv2.CAP_PROP_POS_FRAMES, 0)  # Loop the video
+            ret, frame = video_capture.read()
+            if not ret or frame is None:
+                return pygame.Surface((WIDTH, HEIGHT))  # Fallback
+
+        frame = cv2.resize(frame, (WIDTH, HEIGHT))
+        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        return pygame.surfarray.make_surface(frame.swapaxes(0, 1))
+
+    def show_question(self, question_text):
+        # Get and draw video frame
+        video_frame = self.get_video_frame(self.question_video)
+        self.screen.blit(video_frame, (0, 0))
+
+        # Only render text if provided and not empty
+        if question_text and str(question_text).strip():
+            margin = 250
+            max_width = WIDTH - 2 * margin
+            line_height = self.font.get_linesize()
+            text_y = HEIGHT // 2 - 50
+
+            words = question_text.split(' ')
+            lines = []
+            current_line = []
+
+            for word in words:
+                test_line = ' '.join(current_line + [word])
+                test_width = self.font.size(test_line)[0]
+
+                if test_width <= max_width:
+                    current_line.append(word)
+                else:
+                    if current_line:
+                        lines.append(' '.join(current_line))
+                    current_line = [word]
+
+            if current_line:
+                lines.append(' '.join(current_line))
+
+            # Create a surface for the text
+            text_surface = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
+            for line in lines:
+                line_surface = self.font.render(line, True, (255, 255, 255))
+                text_width = line_surface.get_width()
+                text_x = margin + (max_width - text_width) // 2
+                text_surface.blit(line_surface, (text_x, text_y))
+                text_y += line_height
+
+            # Blit the text surface onto the screen
+            self.screen.blit(text_surface, (0, 0))
+
         pygame.display.update()
 
-    def show(self, q):
-        self.screen.blit(self.question_bg, (0, 0))
 
-        # Set margins and calculate available width
-        margin = 250
-        max_width = WIDTH - 2 * margin
-        line_height = self.font.get_linesize()
-        text_y = HEIGHT // 2 - 50  # Starting Y position
+    def show_answer(self, answer_text):
+        """Show answer with video background and buttons"""
+        # Get and draw video frame
+        video_frame = self.get_video_frame(self.answer_video)
+        self.screen.blit(video_frame, (0, 0))
 
-        # Split text into words
-        words = q.split(' ')
-        lines = []
-        current_line = []
-
-        for word in words:
-            # Test if adding this word would exceed the width
-            test_line = ' '.join(current_line + [word])
-            test_width = self.font.size(test_line)[0]
-            
-            if test_width <= max_width:
-                current_line.append(word)
-            else:
-                # If current line isn't empty, finalize it
-                if current_line:
-                    lines.append(' '.join(current_line))
-                # Start new line with current word
-                current_line = [word]
-        
-        # Add the last line
-        if current_line:
-            lines.append(' '.join(current_line))
-
-        # Render each line centered
-        for line in lines:
-            text_surface = self.font.render(line, True, (255, 255, 255))
-            text_width = text_surface.get_width()
-            text_x = margin + (max_width - text_width) // 2
-            self.screen.blit(text_surface, (text_x, text_y))
-            text_y += line_height  # Move down for next line
-
-        pygame.display.update()
-    def show_answer(self, text):
-        self.screen.blit(self.answer_bg, (0, 0))
-        sizeX, sizeY = self.font.size(text)
+        # Draw the centered answer text
+        sizeX, sizeY = self.font.size(answer_text)
         max_width = WIDTH * 0.8
         text_x = (WIDTH * 0.1) + (max_width / 2) - (sizeX / 2)
         text_y = HEIGHT / 3 + 50
+        self.screen.blit(self.font.render(str(answer_text), True, (255, 255, 255)), (text_x, text_y))
 
-        self.screen.blit(self.font.render(str(text), True, (255, 255, 255)), (text_x, text_y))
-
+        # Draw the buttons (circles)
         radius = 75
         y_pos = 520
 
-        green_circle = pygame.Surface((radius * 2, radius * 2), pygame.SRCALPHA)
-        red_circle = pygame.Surface((radius * 2, radius * 2), pygame.SRCALPHA)
-        grey_circle = pygame.Surface((radius * 2, radius * 2), pygame.SRCALPHA)
+        # Create button surfaces
+        buttons = []
+        colors = [(0, 255, 0), (255, 0, 0), (128, 128, 128)]  # Green, Red, Grey
+        positions = [
+            (WIDTH / 6 + 150 - radius, y_pos),  # Green
+            (4 * (WIDTH / 6) + 120 - radius, y_pos),  # Red
+            ((WIDTH / 2 - 20) - radius, y_pos)  # Grey
+        ]
 
-        pygame.draw.circle(green_circle, (0, 255, 0, 0), (radius, radius), radius)
-        pygame.draw.circle(red_circle, (255, 0, 0, 0), (radius, radius), radius)
-        pygame.draw.circle(grey_circle, (128, 128, 128, 0), (radius, radius), radius)
-
-        self.screen.blit(green_circle, (WIDTH / 6 + 150 - radius, y_pos))
-        self.screen.blit(red_circle, (4 * (WIDTH / 6) + 120 - radius, y_pos))
-        self.screen.blit(grey_circle, ((WIDTH / 2 - 20) - radius, y_pos))
+        for color, pos in zip(colors, positions):
+            circle = pygame.Surface((radius * 2, radius * 2), pygame.SRCALPHA)
+            pygame.draw.circle(circle, (*color, 0), (radius, radius), radius)
+            self.screen.blit(circle, pos)
+            buttons.append(pygame.Rect(pos[0], pos[1], radius*2, radius*2))
 
         pygame.display.update()
-
-
+        return buttons  # Return list of button rectangles for collision detection
 class Timer(object):
     def __init__(self):
-        self.screen = pygame.display.set_mode((WIDTH, 800), 0, 32)
-        self.font = pygame.font.Font("Fonts/bernoru-blackultraexpanded.otf", 32)  # Custom font
+        self.font = pygame.font.Font("Fonts/bernoru-blackultraexpanded.otf", 40)
         self.timer_x_pos = (WIDTH / 2) - (WIDTH / 12)
-        self.timer_y_pos = 650  # Lower position
-        self.counter = 0
+        self.timer_y_pos = 660
         self.startTime = 0
         self.elapsed = 0
         self.time_expired = False
         self.buzzer_played = False
         self.timer_width = WIDTH / 6
         self.timer_height = 100
-        
-        self.timer_bg = pygame.Surface((self.timer_width, self.timer_height), pygame.SRCALPHA)
-        self.timer_bg.fill((0, 0, 255, 0))
+        self.circle_radius = 70
+        self.active = False  # New state variable
 
     def start(self):
-        """Start or restart the timer"""
         self.startTime = time.perf_counter()
         self.time_expired = False
         self.buzzer_played = False
+        self.active = True  # Activate timer
 
-    def show(self):
-        """Display the timer with a larger dark blue circle positioned lower on the screen"""
-        self.elapsed = round(time.perf_counter() - self.startTime, 1)
+    def stop(self):
+        self.active = False  # Deactivate timer
 
-        self.timer_y_pos = 667  
-        circle_radius = 70
-        circle_center = (
-            int(self.timer_x_pos + self.timer_width / 2),
-            int(self.timer_y_pos + self.timer_height / 2)
-        )
-        pygame.draw.circle(self.screen, (0, 0, 139), circle_center, circle_radius)
-        timer_text = self.font.render(str(self.elapsed), True, (255, 255, 0))
-        text_rect = timer_text.get_rect(center=circle_center)
-        self.screen.blit(timer_text, text_rect)
+    def update(self):
+        if self.active and not self.time_expired:
+            self.elapsed = round(time.perf_counter() - self.startTime, 1)
+            if self.elapsed >= MAX_TIME_LIMIT:
+                self.time_expired = True
+                if not self.buzzer_played:
+                    pygame.mixer.music.load('Tunog/buzzer2.wav')
+                    pygame.mixer.music.play()
+                    self.buzzer_played = True
+                print("Time's up!")
 
-        if self.elapsed >= MAX_TIME_LIMIT and not self.time_expired:
-            self.time_expired = True
-            if not self.buzzer_played:
-                pygame.mixer.music.load('Tunog/buzzer2.wav')
-                pygame.mixer.music.play()
-                self.buzzer_played = True
-            print("Time's up!")
-
-# Button positions (unchanged)
+    def draw(self, screen):
+        if self.active:
+            # Format time to show 1 decimal place
+            time_text = f"{self.elapsed:.1f}" if self.elapsed < 10 else f"{int(self.elapsed)}"
+            
+            # Render the timer text with larger font
+            timer_text = self.font.render(time_text, True, (255, 255, 255))  # Dark blue color
+            
+            # Center the text
+            text_rect = timer_text.get_rect(
+                center=(self.timer_x_pos + self.timer_width/2, 
+                       self.timer_y_pos + self.timer_height/2)
+            )
+            
+            # Draw the text
+            screen.blit(timer_text, text_rect)
 exit_button_rect = pygame.Rect(WIDTH - 60, 10, 50, 30)
 restart_button_rect = pygame.Rect(WIDTH // 2 - 60, HEIGHT // 2 + 60, 120, 40)
 
@@ -794,7 +816,9 @@ main_game_music_playing = False
 show_status_message = False
 message_display_time = 0
 current_message = ""
-original_placeholder = ""
+showing_answer = False
+current_answer = ""
+button_rects = None
 while True:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
@@ -879,7 +903,7 @@ while True:
             for each_already_selected in already_selected:
                 pane1.clear_already_selected(each_already_selected[0], each_already_selected[1])
 
-            draw_exit_button(pygame.display.get_surface())
+            # draw_exit_button(pygame.display.get_surface())
             if show_status_message:
                 # Calculate current standings
                 current_leader = max(range(len(team_scores)), key=lambda i: team_scores[i])
@@ -957,70 +981,66 @@ while True:
 
         while question_time:
             grid_drawn_flag = False
-            if show_timer_flag and not timer.time_expired:
-                timer.show()  # Show timer only if it hasn't expired yet
-
-            if show_question_flag:
-                print("Current Selected", current_selected)
-                timer.start()  # Start the timer only when the question is displayed
-                try:
-                    question = q[current_selected[0], current_selected[1]]['question']
-                    print("Question:", q[current_selected[0], current_selected[1]]['question'])
-                except:
-                    print('No Question Found For Position')
-                question_screen.show(question)
-                show_question_flag = False
-                show_timer_flag = True
-
-            draw_exit_button(pygame.display.get_surface())
+            
+            if showing_answer:
+                button_rects = question_screen.show_answer(current_answer)
+                timer.stop()  # Stop timer when showing answer
+            else:
+                if show_question_flag:
+                    print("Current Selected", current_selected)
+                    timer.start()  # Start timer when question appears
+                    try:
+                        question = q[current_selected[0], current_selected[1]]['question']
+                        current_answer = q[current_selected[0], current_selected[1]]['answer']
+                        print("Question:", question)
+                    except:
+                        print('No Question Found For Position')
+                    show_question_flag = False
+                
+                question_screen.show_question(question if 'question' in locals() else "")
+                timer.update()  # Update timer state
+                timer.draw(pygame.display.get_surface())  # Draw timer
 
             for event in pygame.event.get():
                 if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-                    if exit_button_rect.collidepoint(event.pos):
-                        pygame.quit()
-                        sys.exit()
-
                     if event.pos[1] > 200:
-                        click_count += 1
-                        print(q[r, c]['answer'])
-                        question_screen.show_answer(q[r, c]['answer'])
-                        show_timer_flag = False
-                        print("Selected Question", c, r, "Points:", board_matrix[c][r], 'Click Count:', click_count)
-                        print("Question Time")
-                    if click_count == 2:
-                        # Store previous state for message logic
-                        prev_scores = team_scores.copy()
-                        prev_leader = max(range(len(team_scores)), key=lambda i: prev_scores[i])
-                        
-                        # Update scores
-                        if event.pos[0] > (WIDTH / 6) and event.pos[0] < 2 * (WIDTH / 6):
-                            team_scores[selected_team_index] += board_matrix[r][c]
-                            correct = True
-                        elif event.pos[0] > 4 * (WIDTH / 6) and event.pos[0] < 5 * (WIDTH / 6):
-                            team_scores[selected_team_index] -= board_matrix[r][c]
-                            correct = False
-                        
-                        # Reset game state
-                        team_selected = False
-                        question_time = False
-                        pane1.draw_grid_flag = True
-                        click_count = 0
-                        
-                        # Set flag to show message AFTER returning to grid
-                        show_status_message = True
-                        message_data = {
-                            'correct': correct,
-                            'points': board_matrix[r][c],
-                            'team_index': selected_team_index,
-                            'prev_scores': prev_scores,
-                            'prev_leader': prev_leader
-                        }
-
-                   
+                        if not showing_answer:
+                            showing_answer = True
+                            print("Selected Question", c, r, "Points:", board_matrix[c][r])
+                        else:
+                            mouse_pos = event.pos
+                            if button_rects[0].collidepoint(mouse_pos):
+                                team_scores[selected_team_index] += board_matrix[r][c]
+                                correct = True
+                            elif button_rects[1].collidepoint(mouse_pos):
+                                team_scores[selected_team_index] -= board_matrix[r][c]
+                                correct = False
+                            elif button_rects[2].collidepoint(mouse_pos):
+                                correct = None
+                            
+                            if button_rects[0].collidepoint(mouse_pos) or \
+                            button_rects[1].collidepoint(mouse_pos) or \
+                            button_rects[2].collidepoint(mouse_pos):
+                                prev_scores = team_scores.copy()
+                                prev_leader = max(range(len(team_scores)), key=lambda i: prev_scores[i])
+                                
+                                team_selected = False
+                                question_time = False
+                                pane1.draw_grid_flag = True
+                                showing_answer = False
+                                
+                                if correct is not None:
+                                    show_status_message = True
+                                    message_data = {
+                                        'correct': correct,
+                                        'points': board_matrix[r][c],
+                                        'team_index': selected_team_index,
+                                        'prev_scores': prev_scores,
+                                        'prev_leader': prev_leader
+                                    }
 
             pygame.display.update()
             clock.tick(60)
-
     elif game_state == "GAME_OVER":
         game_over_screen = GameOverScreen()
         game_over_screen.show(team_names, team_scores)

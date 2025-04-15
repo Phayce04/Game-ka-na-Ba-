@@ -829,6 +829,7 @@ current_message = ""
 showing_answer = False
 current_answer = ""
 button_rects = None
+#mainloop
 while True:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
@@ -836,12 +837,10 @@ while True:
             sys.exit()
 
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-            # Check for exit button click   
             if exit_button_rect.collidepoint(event.pos):
                 pygame.quit()
                 sys.exit()
 
-            # Check for restart button click (only visible on certain screens)
             if game_state in ["GAME_OVER", "TEAM_SETUP"] and restart_button_rect.collidepoint(event.pos):
                 GameOverScreen().reset_game()
                 continue
@@ -850,88 +849,70 @@ while True:
         home_screen = HomeScreen()
         home_screen.show()
         pygame.display.update()
-        
-        # Home screen only has next button
         game_state = "TUTORIAL"
 
     elif game_state == "TUTORIAL":
         tutorial = TutorialScreen()
-        result = tutorial.show()
+        tutorial.show()
         pygame.display.update()
-        
         game_state = "CSV_SETUP"
-
 
     elif game_state == "CSV_SETUP":
         csv_screen = CSVSetupScreen()
         result = csv_screen.show()
         pygame.display.update()
-        
-        if result == "NEXT":
-            game_state = "TEAM_SETUP"
-        elif result == "PREVIOUS":
-            game_state = "TUTORIAL"
+        game_state = "TEAM_SETUP" if result == "NEXT" else "TUTORIAL"
 
     elif game_state == "TEAM_SETUP":
         team_setup = TeamSetupScreen()
         result, team_names, team_scores = team_setup.show()
         pygame.display.update()
-        
         if result == "NEXT":
             game_state = "MAIN_GAME"
         elif result == "PREVIOUS":
             game_state = "CSV_SETUP"
 
-
     elif game_state == "MAIN_GAME":
         click_count = 0
-        if game_state == "MAIN_GAME" and not main_game_music_playing:
+        if not main_game_music_playing:
             pygame.mixer.music.stop()
             pygame.mixer.music.load('Tunog/trial.wav')
-            pygame.mixer.music.set_volume(0) 
+            pygame.mixer.music.set_volume(0)
             pygame.mixer.music.play(-1)
             main_game_music_playing = True
 
         if len(already_selected) == 1:
             game_state = "GAME_OVER"
-            continue  
+            continue
 
-        # Reset to team selection phase
         team_selected = False
-        pane1.placeholder_text = "PUMILI NG KOPONAN"  # Directly update the text
-        pane1.draw_placeholder_area()  # Only redraw the placeholder area
+        pane1.placeholder_text = "PUMILI NG KOPONAN"
+        pane1.draw_placeholder_area()
 
         while not question_time:
-            r, c = 0, 0
             if not grid_drawn_flag:
                 pane1.draw_grid()
-                for i in range(6):  # 6 columns
-                    for j in range(6):  # All rows (0-5)
+                for i in range(6):
+                    for j in range(6):
                         pane1.addText((i, j), board_matrix[j][i])
                 grid_drawn_flag = True
 
             for each_already_selected in already_selected:
                 pane1.clear_already_selected(each_already_selected[0], each_already_selected[1])
 
-            # draw_exit_button(pygame.display.get_surface())
             if show_status_message:
-                # Calculate current standings
                 current_leader = max(range(len(team_scores)), key=lambda i: team_scores[i])
                 leading_team = team_names[current_leader]
                 team_name = team_names[message_data['team_index']]
                 points = message_data['points']
-                
-                # Determine message
                 if message_data['correct']:
-                    if message_data['prev_leader'] != message_data['team_index'] and \
-                    team_scores[message_data['team_index']] > team_scores[current_leader]:
+                    if message_data['prev_leader'] != message_data['team_index'] and team_scores[message_data['team_index']] > team_scores[current_leader]:
                         message = f"NAKAKUHA SI {team_name} NG {points} PUNTOS, SYA NA ANG NANGUNGUNA!"
                     else:
                         lead = team_scores[current_leader] - sorted(team_scores)[-2]
                         message = f"NAKAKUHA SI {team_name} NG {points} PUNTOS, NANGUNGUNA PA RIN SI {leading_team} NG {lead}"
                 else:
-                    if message_data['prev_leader'] == message_data['team_index'] and \
-                    current_leader != message_data['team_index']:
+                    if message_data['prev_leader'] == message_data['team_index'] and current_leader != message_data['team_index']:
                         message = f"BUMABA NG {points} SI {team_name}, NANGUNGUNA NA SI {leading_team}"
                     elif team_scores[message_data['team_index']] == max(team_scores):
                         lead = team_scores[current_leader] - sorted(team_scores)[-2]
@@ -939,8 +920,6 @@ while True:
                     else:
                         deficit = max(team_scores) - team_scores[message_data['team_index']]
                         message = f"BUMABA NG {points} SI {team_name}, KAILANGAN NA NYANG HUMABOL NG {deficit}"
-                
-                # Show message
                 pane1.show_score_notification(message_data)
                 show_status_message = False
 
@@ -955,30 +934,24 @@ while True:
                         sys.exit()
 
                     if team_selected:
-                        print('Board Time')
-                        for col in range(6):  # Only 6 columns
+                        for col in range(6):
                             if col * (WIDTH / 6) < event.pos[0] < (col + 1) * (WIDTH / 6):
-                                c = col
-                                for row in range(1, 6):  # Clickable rows: 1-5
+                                for row in range(1, 6):
                                     row_pixel = row * (HEIGHT / 8)
                                     if row_pixel < event.pos[1] < (row + 1) * (HEIGHT / 8):
-                                        r = row 
-                                        print('Clicked on:', r, c, 'SCORE:', board_matrix[r][c])
-                                        show_question_flag = True
+                                        r, c = row, col
                                         if (r, c) not in already_selected:
                                             already_selected.append((r, c))
                                             current_selected = [r, c]
                                             question_time = True
+                                            show_question_flag = True
                                         else:
                                             pane1.placeholder_text = "PUMILI NG IBA"
                                             pane1.draw_placeholder_area()
-
                     else:
-                        print('First select a team')
                         if event.pos[1] > HEIGHT - (2 * (HEIGHT / 8)):
                             for col in range(6):
                                 if col < len(team_names) and col * (WIDTH / 6) < event.pos[0] < (col + 1) * (WIDTH / 6):
-                                    print('Selected Team:', col, 'Selected Team Name:', team_names[col], 'score', team_scores[col])
                                     selected_team_index = col
                                     pane1.show_selected_box()
                                     team_selected = True
@@ -989,56 +962,64 @@ while True:
             pygame.display.update()
             clock.tick(60)
 
+        question_displayed_once = False
+
         while question_time:
             grid_drawn_flag = False
-            
+
             if showing_answer:
                 button_rects = question_screen.show_answer(current_answer)
-                timer.stop()  # Stop timer when showing answer
+                timer.stop()
             else:
                 if show_question_flag:
-                    print("Current Selected", current_selected)
-                    timer.start()  # Start timer when question appears
+                    timer.start()
                     try:
                         question = q[current_selected[0], current_selected[1]]['question']
                         current_answer = q[current_selected[0], current_selected[1]]['answer']
-                        print("Question:", question)
                     except:
-                        print('No Question Found For Position')
+                        question = ""
+                        current_answer = ""
                     show_question_flag = False
-                
-                question_screen.show_question(question if 'question' in locals() else "")
-                timer.update()  # Update timer state
-                timer.draw(pygame.display.get_surface())  # Draw timer
+
+                question_screen.show_question(question)
+                timer.update()
+                timer.draw(pygame.display.get_surface())
+
+                question_displayed_once = True
+
+                # ✅ Auto-transition after time expires
+                if timer.time_expired and not showing_answer and question_displayed_once:
+                    showing_answer = True
+                    pygame.time.delay(1000)
 
             for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    pygame.quit()
+                    sys.exit()
+
                 if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                     if event.pos[1] > 200:
                         if not showing_answer:
                             showing_answer = True
-                            print("Selected Question", c, r, "Points:", board_matrix[c][r])
                         else:
-                            mouse_pos = event.pos
-                            if button_rects[0].collidepoint(mouse_pos):
+                            if button_rects[0].collidepoint(event.pos):
                                 team_scores[selected_team_index] += board_matrix[r][c]
                                 correct = True
-                            elif button_rects[1].collidepoint(mouse_pos):
+                            elif button_rects[1].collidepoint(event.pos):
                                 team_scores[selected_team_index] -= board_matrix[r][c]
                                 correct = False
-                            elif button_rects[2].collidepoint(mouse_pos):
+                            elif button_rects[2].collidepoint(event.pos):
                                 correct = None
-                            
-                            if button_rects[0].collidepoint(mouse_pos) or \
-                            button_rects[1].collidepoint(mouse_pos) or \
-                            button_rects[2].collidepoint(mouse_pos):
+
+                            if correct is not None or button_rects[2].collidepoint(event.pos):
                                 prev_scores = team_scores.copy()
                                 prev_leader = max(range(len(team_scores)), key=lambda i: prev_scores[i])
-                                
+
                                 team_selected = False
                                 question_time = False
                                 pane1.draw_grid_flag = True
                                 showing_answer = False
-                                
+
                                 if correct is not None:
                                     show_status_message = True
                                     message_data = {
@@ -1051,14 +1032,10 @@ while True:
 
             pygame.display.update()
             clock.tick(60)
+
     elif game_state == "GAME_OVER":
-        game_over_screen = GameOverScreen()
-        game_over_screen.show(team_names, team_scores)
-        
-        quit_screen = QuitScreen()
-        action = quit_screen.show()
-        
+        GameOverScreen().show(team_names, team_scores)
+        action = QuitScreen().show()
         if action == "restart":
-            game_state = "HOME"  
-        else:
-            pass
+            game_state = "HOME"
+

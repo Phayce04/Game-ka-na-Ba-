@@ -157,15 +157,20 @@ class QuitScreen:
     def __init__(self):
         self.screen = pygame.display.set_mode((WIDTH, HEIGHT))
         self.font_medium = pygame.font.SysFont('Arial', 48)
-        self.bg_image = pygame.image.load("Larawan/restart.png").convert()
-        self.bg_image = pygame.transform.scale(self.bg_image, (WIDTH, HEIGHT))
+        
+        # Load both video backgrounds
+        self.restart_video = cv2.VideoCapture("Larawan/restart.mp4")
+        self.quit_video = cv2.VideoCapture("Larawan/quit.mp4")
+        self.current_video = self.restart_video  # Start with restart video
+        self.selected_option = "restart"  # Track current selection
+        
         button_width = 300 * 2 - 100
         button_height = 100 * 2 - 30
 
         self.restart_button = Button(WIDTH // 2 - button_width // 2, HEIGHT // 2 - 50 - 120, button_width, button_height, "", (0, 255, 0, 0))
         self.quit_button = Button(WIDTH // 2 - button_width // 2, HEIGHT // 2 + 100 - 50, button_width, button_height, "", (255, 0, 0, 0))
 
-        # Add gold sparkle to each button (manual position)
+        # Sparkles
         restart_x = self.restart_button.rect.left + 10
         restart_y = self.restart_button.rect.top + 18
         quit_x = self.quit_button.rect.right - 5
@@ -174,18 +179,40 @@ class QuitScreen:
         self.restart_sparkle = SparkleParticle(restart_x, restart_y)
         self.quit_sparkle = SparkleParticle(quit_x, quit_y)
 
+    def get_video_frame(self):
+        ret, frame = self.current_video.read()
+        if not ret or frame is None:
+            self.current_video.set(cv2.CAP_PROP_POS_FRAMES, 0)
+            ret, frame = self.current_video.read()
+            if not ret or frame is None:
+                return pygame.Surface((WIDTH, HEIGHT))
+        frame = cv2.resize(frame, (WIDTH, HEIGHT))
+        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        return pygame.surfarray.make_surface(frame.swapaxes(0, 1))
+
+    def switch_video(self):
+        """Toggle between restart and quit videos"""
+        if self.selected_option == "restart":
+            self.current_video = self.quit_video
+            self.selected_option = "quit"
+        else:
+            self.current_video = self.restart_video
+            self.selected_option = "restart"
+        # Reset video position when switching
+        self.current_video.set(cv2.CAP_PROP_POS_FRAMES, 0)
+
     def show(self):
         running = True
         while running:
-            self.screen.blit(self.bg_image, (0, 0))
+            # Draw current video frame
+            video_frame = self.get_video_frame()
+            self.screen.blit(video_frame, (0, 0))
 
+            # Draw UI elements
             self.restart_button.draw(self.screen)
             self.quit_button.draw(self.screen)
-
-            # Update and draw sparkles
             self.restart_sparkle.update()
             self.restart_sparkle.draw(self.screen)
-
             self.quit_sparkle.update()
             self.quit_sparkle.draw(self.screen)
 
@@ -195,6 +222,10 @@ class QuitScreen:
                 if event.type == pygame.QUIT:
                     pygame.quit()
                     sys.exit()
+                
+                if event.type == pygame.KEYDOWN:
+                    if event.key in (pygame.K_UP, pygame.K_DOWN):
+                        self.switch_video()
                 
                 if event.type == pygame.MOUSEBUTTONDOWN:
                     if self.restart_button.is_clicked(event.pos):
@@ -207,13 +238,14 @@ class QuitScreen:
             clock.tick(30)
 
 
-
     def reset_game(self):
         """Resets all game variables to their initial state"""
         global p1, show_question_flag, start_flag, team_names, team_scores, already_selected
         global current_selected, team_selected, question_time, grid_drawn_flag
         global selected_team_index, show_timer_flag, Running_flag, game_state
         global main_game_music_playing
+        self.restart_video.release()
+        self.quit_video.release()
 
         # Reset game variables
         load_questions('Katanungan/default-na-tanong.csv')  
@@ -690,11 +722,8 @@ class Question(object):
 
     def show_answer(self, answer_text):
         """Show answer with video background and buttons"""
-        # Get and draw video frame
         video_frame = self.get_video_frame(self.answer_video)
         self.screen.blit(video_frame, (0, 0))
-
-        # Draw the centered answer text
         sizeX, sizeY = self.font.size(answer_text)
         max_width = WIDTH * 0.8
         text_x = (WIDTH * 0.1) + (max_width / 2) - (sizeX / 2)

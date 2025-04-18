@@ -21,7 +21,7 @@ answered_img = pygame.image.load("Larawan/parangpiattos.png")
 answered_img = pygame.transform.scale(answered_img, (WIDTH // 6, HEIGHT/8))
 pygame.mixer.init()
 pygame.mixer.music.load('Tunog/bgm.wav')
-pygame.mixer.music.set_volume(0)  
+pygame.mixer.music.set_volume(1)  
 pygame.mixer.music.play(-1) 
 gameDisplay = pygame.display.set_mode((WIDTH, HEIGHT), pygame.FULLSCREEN)
 pygame.display.set_caption('Bilis Sagot')
@@ -877,7 +877,7 @@ while True:
         if not main_game_music_playing:
             pygame.mixer.music.stop()
             pygame.mixer.music.load('Tunog/trial.wav')
-            pygame.mixer.music.set_volume(0)
+            pygame.mixer.music.set_volume(1)
             pygame.mixer.music.play(-1)
             main_game_music_playing = True
 

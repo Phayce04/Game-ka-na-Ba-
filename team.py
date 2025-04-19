@@ -60,14 +60,14 @@ class CSVSetupScreen:
             # Display just the filename without path or extension
             csv_filename = os.path.splitext(os.path.basename(self.current_csv))[0]
             csv_text = self.font_small.render(csv_filename, True, (238, 202, 62))  # Gold color
-            self.screen.blit(csv_text, (WIDTH//2 - csv_text.get_width()//2, 200))  # Centered position
+            self.screen.blit(csv_text, (WIDTH//2 - csv_text.get_width()//2, 285))  # Centered position
             
             # Draw translucent buttons
             buttons = [
                 (self.csv_button, (150, 150, 150, 0)),
                 (self.edit_button, (150, 150, 150, 0)),
-                (self.next_button, (100, 200, 100, 0)),  # Green
-                (self.prev_button, (200, 100, 100, 0))   # Red
+                (self.next_button, (100, 200, 100, 0)), 
+                (self.prev_button, (200, 100, 100, 0))   
             ]
             
             for rect, color in buttons:
@@ -197,166 +197,180 @@ class CSVSetupScreen:
 class TeamSetupScreen:
     def __init__(self):
         self.screen = pygame.display.set_mode((WIDTH, HEIGHT))
-        
+
         # Load fonts
         try:
-            self.font_large = pygame.font.Font("Fonts/ArchivoBlack-Regular.ttf", 72)
-            self.font_medium = pygame.font.Font("Fonts/ArchivoBlack-Regular.ttf", 48)
-            self.font_small = pygame.font.Font("Fonts/ArchivoBlack-Regular.ttf", 36)
-            self.font_thin = pygame.font.Font("Fonts/ArchivoBlack-Regular.ttf", 24)
+            self.font_large = pygame.font.Font("Fonts/ARCADE_N.TTF", 72)
+            self.font_medium = pygame.font.Font("Fonts/ARCADE_N.TTF", 48)
+            self.font_small = pygame.font.Font("Fonts/ARCADE_N.TTF", 36)
+            self.font_thin = pygame.font.Font("Fonts/ARCADE_N.TTF", 24)
         except:
             self.font_large = pygame.font.SysFont('Arial', 72, bold=True)
             self.font_medium = pygame.font.SysFont('Arial', 48, bold=True)
             self.font_small = pygame.font.SysFont('Arial', 36, bold=True)
             self.font_thin = pygame.font.SysFont('Arial', 24, bold=True)
-        
+
         # Team setup variables
         self.team_count = 2
         self.team_inputs = []
         self.active_input = None
-        
-        # Load background images
-        self.background = pygame.image.load("Larawan/pangkat.png")
-        self.background = pygame.transform.scale(self.background, (WIDTH, HEIGHT))
+
+        # Initial video background
+        self.video = cv2.VideoCapture("Larawan/team2.mp4")
+        self.current_video = "Larawan/team2.mp4"
+
+        # Team box background
         self.team_bg = pygame.image.load('Larawan/Bg5.png').convert()
-        
+
         # Colors
         self.gold_color = (212, 175, 55)
         self.name_color = (238, 202, 62)
         self.white = (255, 255, 255)
-        
+        self.red = (255, 0, 0)
+
         # Navigation buttons
-        self.prev_button = pygame.Rect(20, 20, 130, 60)
-        self.done_button = pygame.Rect(WIDTH - 210, HEIGHT - 90, 180, 60)
+        self.prev_button = pygame.Rect(20, 30, 200, 100)
+        self.done_button = pygame.Rect(WIDTH - 320, 30, 360, 100)
+
+    def get_video_frame(self):
+        ret, frame = self.video.read()
+        if not ret or frame is None:
+            self.video.set(cv2.CAP_PROP_POS_FRAMES, 0)
+            ret, frame = self.video.read()
+            if not ret or frame is None:
+                return pygame.Surface((WIDTH, HEIGHT))
+        frame = cv2.resize(frame, (WIDTH, HEIGHT))
+        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        return pygame.surfarray.make_surface(frame.swapaxes(0, 1))
 
     def show(self):
         running = True
         input_boxes = []
-        
-        while running:
-            self.screen.blit(self.background, (0, 0))
-            
-            # Team count controls (unchanged positions)
-            center_x = WIDTH // 2
-            button_y = 375
+        validation_message = "Sagoot Showdown"  # Default message
 
-            # Minus button (unchanged)
+        while running:
+            # Dynamically switch video based on team count
+            video_file = f"Larawan/team{self.team_count}.mp4"
+            if self.current_video != video_file:
+                self.video.release()
+                self.video = cv2.VideoCapture(video_file)
+                self.current_video = video_file
+
+            # Render video background
+            self.screen.blit(self.get_video_frame(), (0, 0))
+
+            center_x = WIDTH // 2
+            button_y = 510
+
+            # Minus button
             minus_radius = 50
-            minus_button_pos = (center_x + 190, button_y)
+            minus_button_pos = (center_x + 120, button_y)
             s = pygame.Surface((minus_radius*2, minus_radius*2), pygame.SRCALPHA)
-            pygame.draw.circle(s, (200, 0, 0, 180), (minus_radius, minus_radius), minus_radius)
+            pygame.draw.circle(s, (200, 0, 0, 0), (minus_radius, minus_radius), minus_radius)
             self.screen.blit(s, (minus_button_pos[0] - minus_radius, minus_button_pos[1] - minus_radius))
 
-            # Team count display (unchanged)
-            count_display = self.font_large.render(str(self.team_count), True, (238, 202, 62))
-            self.screen.blit(count_display, ((center_x + 375) - count_display.get_width() // 2 -15, button_y - count_display.get_height() // 2))
+            # Team count text (smaller)
+            count_display = self.font_medium.render(str(self.team_count), True, (238, 202, 62))
+            self.screen.blit(count_display, ((center_x + 300) - count_display.get_width() // 2 - 15, button_y - count_display.get_height() + 60 // 2))
 
-            # Plus button (unchanged)
+            # Plus button
             plus_radius = 50
-            plus_button_pos = (center_x + 540, button_y)
+            plus_button_pos = (center_x + 440, button_y)
             s = pygame.Surface((plus_radius*2, plus_radius*2), pygame.SRCALPHA)
-            pygame.draw.circle(s, (0, 200, 0, 180), (plus_radius, plus_radius), plus_radius)
+            pygame.draw.circle(s, (0, 200, 0, 0), (plus_radius, plus_radius), plus_radius)
             self.screen.blit(s, (plus_button_pos[0] - plus_radius, plus_button_pos[1] - plus_radius))
-            
-            # Team name inputs - with larger boxes and 6-character limit
+
             if len(self.team_inputs) != self.team_count:
                 self.team_inputs = ["" for _ in range(self.team_count)]
-            
-            # Larger boxes with adjusted spacing
-            gap_x = 100 if self.team_count == 2 else 30 if self.team_count == 4 else 80
-            column_width = 350  # Increased from 285
-            box_height = 180   # Increased from 140
+                validation_message = "Maglagay ng pangalan"  # Reset message when team count changes
+
+            # Check if all teams have names
+            if all(name.strip() != "" for name in self.team_inputs):
+                validation_message = "Pindutin ang START"
+            elif validation_message == "Sagoot Showdown":
+                validation_message = "Maglagay ng pangalan"
+
+            message_surface = self.font_thin.render(validation_message, True, 
+                                                   self.gold_color if validation_message == "Maglagay ng pangalan" 
+                                                   else self.gold_color)
+            self.screen.blit(message_surface, (WIDTH//2 - message_surface.get_width()//2, 370))
+
+            # Adjust spacing
+            gap_x = -15 if self.team_count == 2 else -20
+            column_width = 350
             total_width = (column_width + gap_x) * self.team_count - gap_x
             start_x = WIDTH // 2 - total_width // 2
-            y_offset = 500  # Same vertical position
-            
+            y_offset = 500
+
             for i in range(self.team_count):
                 x = start_x + i * (column_width + gap_x)
-                
-                # Draw larger team background
-                team_bg_scaled = pygame.transform.scale(self.team_bg, (column_width, box_height))
-                self.screen.blit(team_bg_scaled, (x, y_offset))
-                
-                # Team label
-                label = self.font_small.render(f"TEAM {i+1}", True, self.name_color)
-                self.screen.blit(label, (x + (column_width - label.get_width())//2, y_offset + 25))  # Adjusted position
-                
-                # Larger input box
-                input_rect = pygame.Rect(x + 25, y_offset + 75, column_width - 50, 60)  # Increased size
-                
-                # Draw input background
+
+                # Text input box (smaller, moved down)
+                input_rect = pygame.Rect(x + 50, y_offset + 175, column_width - 100, 55)
                 s = pygame.Surface((input_rect.width, input_rect.height), pygame.SRCALPHA)
-                s.fill((255, 255, 255, 128))
+                s.fill((255, 255, 255, 0))  # transparent bg
                 self.screen.blit(s, (input_rect.x, input_rect.y))
-                
-                # Draw border if active
+
                 border_color = self.name_color if self.active_input == i else self.white
                 pygame.draw.rect(self.screen, border_color, input_rect, 2)
-                
-                # Draw input text (limited to 6 characters)
-                display_text = self.team_inputs[i][:6]  # Truncate to 6 chars
-                text_surface = self.font_small.render(display_text, True, (0, 0, 0))
-                self.screen.blit(text_surface, (input_rect.x + 10, input_rect.y + 15))
-                
-                # Draw gold border around entire team box
-                pygame.draw.rect(self.screen, self.gold_color, (x, y_offset, column_width, box_height), 8)
-                
-                # Store the input rect for click detection
+
+                # Render text
+                display_text = self.team_inputs[i][:6]
+                text_surface = self.font_small.render(display_text, True, self.name_color)
+                self.screen.blit(text_surface, (input_rect.x + 15, input_rect.y + 10))
+
                 if len(input_boxes) <= i:
                     input_boxes.append(input_rect)
                 else:
                     input_boxes[i] = input_rect
-            
-            # Previous button (unchanged)
+
+            # Previous button
             s = pygame.Surface((self.prev_button.width, self.prev_button.height), pygame.SRCALPHA)
-            s.fill((200, 100, 100, 128))
+            s.fill((200, 100, 100, 0))
             self.screen.blit(s, (self.prev_button.x, self.prev_button.y))
 
-            # Start button (unchanged)
+            # Done button
             s = pygame.Surface((self.done_button.width, self.done_button.height), pygame.SRCALPHA)
-            s.fill((100, 200, 100, 180))
+            s.fill((100, 200, 100, 0))
             self.screen.blit(s, (self.done_button.x, self.done_button.y))
-            
-            # Event handling with 6-character limit
+
+            # Handle events
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     pygame.quit()
                     sys.exit()
-                
+
                 if event.type == pygame.MOUSEBUTTONDOWN:
                     mouse_pos = pygame.mouse.get_pos()
-                    
-                    # Check team count buttons
-                    if ((mouse_pos[0] - minus_button_pos[0])**2 + 
-                        (mouse_pos[1] - minus_button_pos[1])**2 <= minus_radius**2 and 
-                        self.team_count > 1):
+
+                    if ((mouse_pos[0] - minus_button_pos[0])**2 +
+                        (mouse_pos[1] - minus_button_pos[1])**2 <= minus_radius**2 and
+                        self.team_count > 2):
                         self.team_count -= 1
-                    elif ((mouse_pos[0] - plus_button_pos[0])**2 + 
-                         (mouse_pos[1] - plus_button_pos[1])**2 <= plus_radius**2 and 
-                         self.team_count < 4):
+
+                    elif ((mouse_pos[0] - plus_button_pos[0])**2 +
+                          (mouse_pos[1] - plus_button_pos[1])**2 <= plus_radius**2 and
+                          self.team_count < 4):
                         self.team_count += 1
-                    
-                    # Check input boxes
+
                     self.active_input = None
                     for i, box in enumerate(input_boxes):
                         if box.collidepoint(event.pos):
                             self.active_input = i
-                    
-                    # Check previous button
+
                     if self.prev_button.collidepoint(event.pos):
                         return "PREVIOUS", None, None
-                    
-                    # Check Start Game button
+
                     if self.done_button.collidepoint(event.pos):
                         if all(name.strip() != "" for name in self.team_inputs):
                             return "NEXT", self.team_inputs, [0] * self.team_count
-                
+
                 if event.type == pygame.KEYDOWN and self.active_input is not None:
                     if event.key == pygame.K_BACKSPACE:
                         self.team_inputs[self.active_input] = self.team_inputs[self.active_input][:-1]
                     else:
-                        if (len(self.team_inputs[self.active_input]) < 6 and  # Changed from 12 to 6
-                           event.unicode.isprintable() and 
+                        if (len(self.team_inputs[self.active_input]) < 6 and
+                           event.unicode.isprintable() and
                            not event.unicode.isspace()):
                             self.team_inputs[self.active_input] += event.unicode
 

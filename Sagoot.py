@@ -708,14 +708,13 @@ class Question(object):
         sizeX, sizeY = self.font.size(answer_text)
         max_width = WIDTH * 0.8
         text_x = (WIDTH * 0.1) + (max_width / 2) - (sizeX / 2)
-        text_y = HEIGHT / 3 + 50
+        text_y = HEIGHT / 3 + 35
         self.screen.blit(self.font.render(str(answer_text), True, (255, 255, 255)), (text_x, text_y))
 
         # Draw the buttons (circles)
         radius = 75
         y_pos = 520
 
-        # Create button surfaces
         buttons = []
         colors = [(0, 255, 0), (255, 0, 0), (128, 128, 128)]  # Green, Red, Grey
         positions = [

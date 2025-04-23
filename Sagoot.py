@@ -20,6 +20,8 @@ pygame.init()
 answered_img = pygame.image.load("Larawan/flipped.png")
 answered_img = pygame.transform.scale(answered_img, (WIDTH // 6, HEIGHT/8))
 pygame.mixer.init()
+question_open_sound = pygame.mixer.Sound('Tunog/question_sound.mp3')
+question_open_sound.set_volume(1)  # Optional: adjust volume
 pygame.mixer.music.load('Tunog/bgm.wav')
 pygame.mixer.music.set_volume(1)  
 pygame.mixer.music.play(-1) 
@@ -884,6 +886,10 @@ while True:
                                             current_selected = [r, c]
                                             question_time = True
                                             show_question_flag = True
+                                            question_open_sound.play()
+                                            pygame.mixer.music.pause()  # ⏸ Pause the background music
+
+
                                         else:
                                             pane1.placeholder_text = "PUMILI NG IBA"
                                             pane1.draw_placeholder_area()
@@ -958,6 +964,10 @@ while True:
                                 question_time = False
                                 pane1.draw_grid_flag = True
                                 showing_answer = False
+                                question_open_sound.stop()
+
+                                pygame.mixer.music.unpause()  # ▶️ Resume background music
+
 
                                 if correct is not None:
                                     show_status_message = True

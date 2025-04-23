@@ -17,7 +17,7 @@ from pygame.locals import *
 import cv2
 
 pygame.init()
-answered_img = pygame.image.load("Larawan/parangpiattos.png")
+answered_img = pygame.image.load("Larawan/flipped.png")
 answered_img = pygame.transform.scale(answered_img, (WIDTH // 6, HEIGHT/8))
 pygame.mixer.init()
 pygame.mixer.music.load('Tunog/bgm.wav')
@@ -38,9 +38,9 @@ class GameOverScreen:
     def __init__(self):
         self.screen = pygame.display.set_mode((WIDTH, HEIGHT))
         self.font_large = pygame.font.Font('Fonts/ARCADE_N.TTF', 72)
-        self.font_medium = pygame.font.Font('Fonts/ARCADE_N.TTF', 64)  # Increased size for score
-        self.font_small = pygame.font.Font('Fonts/ARCADE_N.TTF', 36)   # Smaller team name
-        self.font_thin_large = pygame.font.Font('Fonts/ARCADE_N.TTF', 56)  # Smaller winner name
+        self.font_medium = pygame.font.Font('Fonts/ARCADE_N.TTF', 64) 
+        self.font_small = pygame.font.Font('Fonts/ARCADE_N.TTF', 36)   
+        self.font_thin_large = pygame.font.Font('Fonts/ARCADE_N.TTF', 56) 
         self.font_tiny = pygame.font.Font('Fonts/ARCADE_N.TTF', 20)
 
         self.video = None
@@ -53,7 +53,7 @@ class GameOverScreen:
         elif num_teams == 4:
             path = "Larawan/over4.mp4"
         else:
-            path = "Larawan/over2.mp4"  # fallback
+            path = "Larawan/over2.mp4" 
         return cv2.VideoCapture(path)
 
     def get_video_frame(self):
@@ -62,7 +62,7 @@ class GameOverScreen:
             self.video.set(cv2.CAP_PROP_POS_FRAMES, 0)
             ret, frame = self.video.read()
             if not ret or frame is None:
-                return pygame.Surface((WIDTH, HEIGHT))  # fallback
+                return pygame.Surface((WIDTH, HEIGHT))  
 
         frame = cv2.resize(frame, (WIDTH, HEIGHT))
         frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
@@ -283,21 +283,29 @@ class Pane(object):
         self.placeholder_font = pygame.font.Font("Fonts/ArchivoBlack-Regular.ttf", 24)
         self.placeholder_text = "SELECT A TEAM"
         self.placeholder_rect = pygame.Rect(0, 6 * (HEIGHT / 8), WIDTH, HEIGHT / 8)
-        self.message_bg = pygame.image.load("Larawan/BG2.png").convert()
-        self.message_bg = pygame.transform.scale(self.message_bg, (WIDTH, int(HEIGHT / 8)))
+        
+        # Load images with alpha
+        self.message_bg = pygame.image.load("Larawan/BG2.png").convert_alpha()
+        self.message_bg = pygame.transform.scale(self.message_bg, (WIDTH, int(HEIGHT/8)))
+        
+        # Load main background image with alpha
+        self.background = pygame.image.load("Larawan/main.png").convert_alpha()
+        self.background = pygame.transform.scale(self.background, (WIDTH, HEIGHT))
 
-        self.screen = pygame.display.set_mode((WIDTH, HEIGHT), 0, 32)
-        self.screen.fill(white)
+        self.screen = pygame.display.set_mode((WIDTH, HEIGHT), pygame.SRCALPHA, 32)
+        self.screen.fill((0, 0, 0, 0))  # Fully transparent
         self.draw_grid_flag = True
         self.sparkles = []
 
         pygame.display.update()
 
     def draw_placeholder_area(self):
-        self.screen.blit(self.message_bg, self.placeholder_rect)
+        # Create a transparent surface for the background
+        bg_surface = pygame.Surface((WIDTH, int(HEIGHT/8)), pygame.SRCALPHA)
+        self.screen.blit(bg_surface, self.placeholder_rect)
         self.placeholder_bg_copy = self.screen.subsurface(self.placeholder_rect).copy()
 
-        # Animate text scale (simplified)
+        # Draw text (non-transparent)
         text_surface = self.placeholder_font.render(self.placeholder_text, True, pygame.Color('#eeca3e'))
         text_shadow = self.placeholder_font.render(self.placeholder_text, True, (0, 0, 0))
 
@@ -308,13 +316,18 @@ class Pane(object):
         self.screen.blit(text_surface, (x, y))
 
     def show_score_notification(self, message_data):
-        duration = 3000
+        duration = 2000
         start_time = pygame.time.get_ticks()
 
         original_text = self.placeholder_text
-        self.placeholder_text = ""  # Temporarily clear it to not draw under notification
+        self.placeholder_text = ""  # Temporarily clear it
 
-        # Determine message
+        # Create a semi-transparent background
+        notification_bg = pygame.Surface((WIDTH, int(HEIGHT/8)), pygame.SRCALPHA)
+        pygame.draw.rect(notification_bg, (30, 30, 80, 0), notification_bg.get_rect())  # 180 alpha (70% opaque)
+        self.screen.blit(notification_bg, self.placeholder_rect)
+
+        # Rest of the notification code remains the same for text
         current_leader = max(range(len(team_scores)), key=lambda i: team_scores[i])
         leading_team = team_names[current_leader]
         team_name = team_names[message_data['team_index']]
@@ -343,8 +356,7 @@ class Pane(object):
                 message = f"BUMABA NG {points} ANG {team_name}, KAILANGAN NA NIYANG HUMABOL NG {deficit}"
                 color = pygame.Color('#ff6347')
 
-        # Draw static message once
-        pygame.draw.rect(self.screen, color, self.placeholder_rect)
+        # Draw text (non-transparent)
         font = pygame.font.Font("Fonts/ArchivoBlack-Regular.ttf", 32)
         text_surface = font.render(message, True, white)
         shadow_surface = font.render(message, True, black)
@@ -358,7 +370,6 @@ class Pane(object):
 
         pygame.display.update(self.placeholder_rect)
 
-        # Simple time delay instead of animation loop
         while pygame.time.get_ticks() - start_time < duration:
             clock.tick(60)
 
@@ -370,44 +381,12 @@ class Pane(object):
             self.show_selected_box()
         pygame.display.update()
 
-
-    def draw_confetti(self, progress):
-        for _ in range(2):
-            x = random.randint(self.placeholder_rect.left, self.placeholder_rect.right)
-            y = random.randint(self.placeholder_rect.top - 30, self.placeholder_rect.top)
-            color = random.choice([red, green, blue, yellow, white])
-            size = random.randint(2, 6)
-            speed = random.uniform(1, 3)
-            self.confetti_particles.append({
-                'x': x, 'y': y, 'color': color, 'size': size, 'speed': speed,
-                'angle': random.uniform(0, 2 * math.pi)
-            })
-
-        for particle in self.confetti_particles:
-            particle['y'] += particle['speed']
-            particle['x'] += math.sin(particle['angle']) * 0.5
-            particle['angle'] += 0.1
-
-            if self.placeholder_rect.collidepoint(particle['x'], particle['y']):
-                pygame.draw.rect(
-                    self.screen,
-                    particle['color'],
-                    (particle['x'], particle['y'], particle['size'], particle['size'])
-                )
-
-            if particle['y'] > self.placeholder_rect.bottom:
-                particle['y'] = self.placeholder_rect.top - random.randint(20, 100)
-                particle['x'] = random.randint(self.placeholder_rect.left, self.placeholder_rect.right)
-
-        if progress >= 1.0:
-            self.confetti_particles = []
-
-
-
-
     def draw_grid(self):
         if self.draw_grid_flag:
-            self.screen.fill((8, 10, 60))  # Dark backdrop
+            # Draw main background with transparency
+            bg_surface = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
+            bg_surface.blit(self.background, (0, 0))
+            self.screen.blit(bg_surface, (0, 0))
             self.draw_grid_flag = False
             self.show_score()
             self.show_selected_box()
@@ -415,7 +394,7 @@ class Pane(object):
         cell_height = int(HEIGHT / 8)
         cell_width = WIDTH / 6
 
-        # Step 1: Adjust header font size to fit all category names
+        # Adjust header font size
         category_texts = [str(board_matrix[0][col]).upper() for col in range(6)]
         max_font_size = 26
         min_font_size = 12
@@ -429,25 +408,27 @@ class Pane(object):
 
         shared_header_font = pygame.font.Font("Fonts/bernoru-blackultraexpanded.otf", final_font_size)
 
-        # Step 2: Draw each cell
-        for row in range(7):  # Including the placeholder/message row
+        for row in range(7):
             for col in range(6):
                 rect = pygame.Rect(col * cell_width, row * cell_height, cell_width, cell_height)
 
                 if row == 0:
-                    # Header cell
-                    pygame.draw.rect(self.screen, pygame.Color('#eeca3e'), rect)
+                    # Header cell - semi-transparent
+                    header_bg = pygame.Surface((cell_width, cell_height), pygame.SRCALPHA)
+                    pygame.draw.rect(header_bg, (238, 202, 62, 0), header_bg.get_rect())  # 150 alpha (~60% opaque)
+                    self.screen.blit(header_bg, rect)
 
-                    # Shine
+                    # Shine effect (semi-transparent)
                     shine = pygame.Surface((cell_width, cell_height // 2), pygame.SRCALPHA)
-                    pygame.draw.rect(shine, (255, 255, 255, 30), shine.get_rect())
+                    pygame.draw.rect(shine, (255, 255, 255, 0), shine.get_rect())
                     self.screen.blit(shine, rect.topleft)
 
-                    # Underline
-                    underline_rect = pygame.Rect(rect.left + 10, rect.bottom - 8, cell_width - 20, 3)
-                    pygame.draw.rect(self.screen, pygame.Color('#eeca3e'), underline_rect)
+                    # Underline (semi-transparent)
+                    underline_surface = pygame.Surface((cell_width - 20, 3), pygame.SRCALPHA)
+                    pygame.draw.rect(underline_surface, (238, 202, 62, 0), underline_surface.get_rect())
+                    self.screen.blit(underline_surface, (rect.left + 10, rect.bottom - 8))
 
-                    # Text and shadow
+                    # Text and shadow (non-transparent)
                     header_text = category_texts[col]
                     header_text_surface = shared_header_font.render(header_text, True, (245, 245, 245))
                     text_shadow = shared_header_font.render(header_text, True, (100, 100, 100))
@@ -459,11 +440,17 @@ class Pane(object):
                     self.screen.blit(header_text_surface, (text_x, text_y))
 
                 elif row == 6:
-                    # Placeholder/message row (spans the entire width)
-                    placeholder_rect = pygame.Rect(0, row * cell_height, WIDTH, cell_height)
-                    pygame.draw.rect(self.screen, (20, 25, 80), placeholder_rect)
-                    pygame.draw.rect(self.screen, pygame.Color('#eeca3e'), placeholder_rect, 3)
+                    # Placeholder/message row
+                    placeholder_bg = pygame.Surface((WIDTH, cell_height), pygame.SRCALPHA)
+                    pygame.draw.rect(placeholder_bg, (20, 25, 80, 0), placeholder_bg.get_rect())  # 180 alpha
+                    self.screen.blit(placeholder_bg, (0, row * cell_height))
 
+                    # Border (semi-transparent)
+                    border_surface = pygame.Surface((WIDTH, cell_height), pygame.SRCALPHA)
+                    pygame.draw.rect(border_surface, (238, 202, 62, 0), border_surface.get_rect(), 3)
+                    self.screen.blit(border_surface, (0, row * cell_height))
+
+                    # Text (non-transparent)
                     text_surface = self.placeholder_font.render(self.placeholder_text, True, pygame.Color('#eeca3e'))
                     text_shadow = self.placeholder_font.render(self.placeholder_text, True, (0, 0, 0))
 
@@ -472,61 +459,40 @@ class Pane(object):
 
                     self.screen.blit(text_shadow, (text_x + 2, text_y + 2))
                     self.screen.blit(text_surface, (text_x, text_y))
-                    break  # Only draw one message row, so exit inner loop
+                    break
 
                 else:
-                    # Regular cell with gradient background
-                    start_color = pygame.Color('#181a89')
-                    end_color = pygame.Color('#12116b')
-                    gradient = pygame.Surface((cell_width, cell_height))
-
-                    for y in range(cell_height):
-                        ratio = y / cell_height
-                        color = pygame.Color(
-                            int(start_color.r + ratio * (end_color.r - start_color.r)),
-                            int(start_color.g + ratio * (end_color.g - start_color.g)),
-                            int(start_color.b + ratio * (end_color.b - start_color.b))
-                        )
-                        pygame.draw.line(gradient, color, (0, y), (cell_width, y))
-
-                    self.screen.blit(gradient, (col * cell_width, row * cell_height))
-
-                    pygame.draw.rect(self.screen, pygame.Color('#eeca3e'), rect, 3)
-                    pygame.draw.rect(self.screen, black, rect, 1)
-
-                    # Shine strip
-                    shine_rect = pygame.Rect(col * cell_width + 5, row * cell_height + 5, cell_width - 10, 15)
-                    shine = pygame.Surface((shine_rect.width, shine_rect.height), pygame.SRCALPHA)
-                    pygame.draw.rect(shine, (255, 255, 255, 60), shine.get_rect())
-                    self.screen.blit(shine, shine_rect)
-
-                    # Grid cell text (gold)
-                    cell_font = pygame.font.Font("Fonts/bernoru-blackultraexpanded.otf", 18)
-                    cell_value = str(board_matrix[row][col])
-                    grid_text_surface = cell_font.render(cell_value, True, pygame.Color('#eeca3e'))
-                    grid_text_rect = grid_text_surface.get_rect(center=(col * cell_width + cell_width // 2,
-                                                                        row * cell_height + cell_height // 2))
-                    self.screen.blit(grid_text_surface, grid_text_rect)
+                    # Regular cells - transparent borders
+                    border_surface = pygame.Surface((cell_width, cell_height), pygame.SRCALPHA)
+                    pygame.draw.rect(border_surface, (238, 202, 62, 0), border_surface.get_rect(), 3)  # Outer border
+                    pygame.draw.rect(border_surface, (0, 0, 0, 0), border_surface.get_rect(), 1)  # Inner border
+                    self.screen.blit(border_surface, rect)
 
         pygame.display.update()
-
-
-
 
     def clear_already_selected(self, col, row):
         cell_width = WIDTH // 6
         cell_height = HEIGHT / 8
-        answered_img = pygame.image.load("Larawan/parangpiattos.png")
+        answered_img = pygame.image.load("Larawan/flipped.png").convert_alpha()
         answered_img = pygame.transform.scale(answered_img, (cell_width, cell_height))
         self.screen.blit(answered_img, (row * cell_width, col * cell_height))
 
     def show_score(self):
         score_area = pygame.Rect(0, HEIGHT / 8 * 7, WIDTH, HEIGHT / 8)
-        pygame.draw.rect(self.screen, (30, 30, 80), score_area)
-        pygame.draw.rect(self.screen, (255, 215, 0), score_area, 3)
+        
+        # Semi-transparent background
+        score_bg = pygame.Surface((WIDTH, HEIGHT/8), pygame.SRCALPHA)
+        pygame.draw.rect(score_bg, (30, 30, 80, 0), score_bg.get_rect())  # 180 alpha
+        self.screen.blit(score_bg, score_area)
+        
+        # Semi-transparent border
+        border_surface = pygame.Surface((WIDTH, HEIGHT/8), pygame.SRCALPHA)
+        pygame.draw.rect(border_surface, (255, 215, 0, 0), border_surface.get_rect(), 3)
+        self.screen.blit(border_surface, score_area)
         
         cell_width = WIDTH / 6
         for i, (name, score) in enumerate(zip(team_names, team_scores)):
+            # Text remains non-transparent
             name_text = self.font.render(name, True, white)
             name_shadow = self.font.render(name, True, black)
             name_x = i * cell_width + cell_width // 2 - name_text.get_width() // 2
@@ -550,40 +516,16 @@ class Pane(object):
                 HEIGHT / 8
             )
             
+            # Semi-transparent highlight
             highlight = pygame.Surface((cell_width, HEIGHT / 8), pygame.SRCALPHA)
-            pygame.draw.rect(highlight, (255, 255, 255, 60), highlight.get_rect())
+            pygame.draw.rect(highlight, (255, 255, 255, 0), highlight.get_rect())
             self.screen.blit(highlight, highlight_rect)
 
+            # Animated semi-transparent border
             border_thickness = 3 + int(2 * math.sin(pygame.time.get_ticks() / 200))
-            pygame.draw.rect(self.screen, (255, 215, 0), highlight_rect, border_thickness)
-
-    def addText(self, pos, text):
-        col, row = pos
-        cell_width = WIDTH / 6
-        cell_height = HEIGHT / 8
-
-        if row == 0:
-            return
-
-        cell_font = pygame.font.Font("Fonts/bernoru-blackultraexpanded.otf", 18)
-        shadow_offset = (2, 2)
-
-        shadow_surface = cell_font.render(str(text), True, black)
-        shadow_rect = shadow_surface.get_rect(center=(
-            col * cell_width + cell_width // 2 + shadow_offset[0],
-            row * cell_height + cell_height // 2 + shadow_offset[1]
-        ))
-
-        text_surface = cell_font.render(str(text), True, pygame.Color("#eeca3e"))
-
-        text_rect = text_surface.get_rect(center=(
-            col * cell_width + cell_width // 2,
-            row * cell_height + cell_height // 2
-        ))
-
-        self.screen.blit(shadow_surface, shadow_rect)
-        self.screen.blit(text_surface, text_rect)
-
+            border_surface = pygame.Surface((cell_width, HEIGHT / 8), pygame.SRCALPHA)
+            pygame.draw.rect(border_surface, (255, 215, 0, 120), border_surface.get_rect(), border_thickness)
+            self.screen.blit(border_surface, highlight_rect)
 class SparkleParticles:
     def __init__(self, x, y):
         self.x = x
@@ -708,14 +650,13 @@ class Question(object):
         sizeX, sizeY = self.font.size(answer_text)
         max_width = WIDTH * 0.8
         text_x = (WIDTH * 0.1) + (max_width / 2) - (sizeX / 2)
-        text_y = HEIGHT / 3 + 50
+        text_y = HEIGHT / 3 + 35
         self.screen.blit(self.font.render(str(answer_text), True, (255, 255, 255)), (text_x, text_y))
 
         # Draw the buttons (circles)
         radius = 75
         y_pos = 520
 
-        # Create button surfaces
         buttons = []
         colors = [(0, 255, 0), (255, 0, 0), (128, 128, 128)]  # Green, Red, Grey
         positions = [
@@ -881,7 +822,7 @@ while True:
             pygame.mixer.music.play(-1)
             main_game_music_playing = True
 
-        if len(already_selected) == 1:
+        if len(already_selected) == 3:
             game_state = "GAME_OVER"
             continue
 
@@ -892,9 +833,7 @@ while True:
         while not question_time:
             if not grid_drawn_flag:
                 pane1.draw_grid()
-                for i in range(6):
-                    for j in range(6):
-                        pane1.addText((i, j), board_matrix[j][i])
+                
                 grid_drawn_flag = True
 
             for each_already_selected in already_selected:

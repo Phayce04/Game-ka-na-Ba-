@@ -12,19 +12,16 @@ class CSVSetupScreen:
     def __init__(self):
         self.screen = pygame.display.set_mode((WIDTH, HEIGHT))
         
-        # Font loading with arcade font
         try:
             self.font_small = pygame.font.Font("Fonts/ARCADE_N.TTF", 36)
         except:
             self.font_small = pygame.font.SysFont('Arial', 24)
         
-        # Video background setup
         self.video_capture = cv2.VideoCapture("Larawan/csv.mp4")
         self.video_fps = self.video_capture.get(cv2.CAP_PROP_FPS)
         
-        # Adjusted button rectangles
-        button_width = 650 - 50  # Reduced horizontal length by 50px
-        button_height = 140 - 20  # Reduced vertical height by 20px
+        button_width = 650 - 50  
+        button_height = 140 - 20  
         
         self.csv_button = pygame.Rect(WIDTH//2 - button_width//2, HEIGHT//2 -10, button_width, button_height)  
         self.edit_button = pygame.Rect(WIDTH//2 - button_width//2, HEIGHT//2 + 150, button_width, button_height) 
@@ -33,9 +30,8 @@ class CSVSetupScreen:
         nav_button_width = 120 * 2  
         nav_button_height = 120
         self.next_button = pygame.Rect(WIDTH - nav_button_width - 20, HEIGHT - nav_button_height - 20, nav_button_width, nav_button_height)  
-        self.prev_button = pygame.Rect(20, 20, nav_button_width, nav_button_height)  # Upper left
+        self.prev_button = pygame.Rect(20, 20, nav_button_width, nav_button_height)  
         
-        # Store full path to default CSV
         self.current_csv = os.path.abspath('Katanungan/default-na-tanong.csv')
 
     def get_video_frame(self):
@@ -53,16 +49,13 @@ class CSVSetupScreen:
         running = True
         
         while running:
-            # Draw video background
             video_frame = self.get_video_frame()
             self.screen.blit(video_frame, (0, 0))
             
-            # Display just the filename without path or extension
             csv_filename = os.path.splitext(os.path.basename(self.current_csv))[0]
-            csv_text = self.font_small.render(csv_filename, True, (238, 202, 62))  # Gold color
-            self.screen.blit(csv_text, (WIDTH//2 - csv_text.get_width()//2, 285))  # Centered position
+            csv_text = self.font_small.render(csv_filename, True, (238, 202, 62))  
+            self.screen.blit(csv_text, (WIDTH//2 - csv_text.get_width()//2, 285))  
             
-            # Draw translucent buttons
             buttons = [
                 (self.csv_button, (150, 150, 150, 0)),
                 (self.edit_button, (150, 150, 150, 0)),
@@ -75,7 +68,6 @@ class CSVSetupScreen:
                 s.fill(color)
                 self.screen.blit(s, (rect.x, rect.y))
 
-            # Event handling
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     pygame.quit()
@@ -107,19 +99,16 @@ class CSVSetupScreen:
 
         if file_path:
             try:
-                # Validate CSV structure
                 df = pd.read_csv(file_path)
                 required_cols = {"Row", "Col", "Question", "Answer", "Categories"}
                 missing = required_cols - set(df.columns)
                 if missing:
                     raise ValueError(f"Missing required columns: {', '.join(missing)}")
 
-                # Validate categories
                 categories = df["Categories"].dropna().astype(str).str.strip().tolist()
                 if len(categories) < 6 or any(cat == "" for cat in categories[:6]):
                     raise ValueError("There must be at least 6 non-empty categories in the 'Categories' column.")
 
-                # Validate Q/A structure
                 required_coords = {(r, c) for r in range(1, 6) for c in range(6)}
                 actual_coords = set()
 
@@ -149,7 +138,6 @@ class CSVSetupScreen:
                     missing = sorted(list(required_coords - actual_coords))
                     raise ValueError(f"Missing Q/A at row {missing[0][0]}, col {missing[0][1]}.")
 
-                # Store full path and load questions
                 self.current_csv = os.path.abspath(file_path)
                 global q, board_matrix
                 q, board_matrix = load_questions(self.current_csv)
@@ -161,18 +149,15 @@ class CSVSetupScreen:
 
     def show_popup(self, message, duration=2000):
         """Display a temporary popup message"""
-        # Create overlay
         overlay = pygame.Surface((WIDTH, HEIGHT))
         overlay.set_alpha(180)
         overlay.fill((0, 0, 0))
         self.screen.blit(overlay, (0, 0))
 
-        # Popup box
         popup_rect = pygame.Rect(WIDTH // 4, HEIGHT // 3, WIDTH // 2, 120)
-        pygame.draw.rect(self.screen, (0, 0, 139), popup_rect)  # Dark blue
-        pygame.draw.rect(self.screen, (255, 215, 0), popup_rect, 3)  # Gold border
+        pygame.draw.rect(self.screen, (0, 0, 139), popup_rect)  
+        pygame.draw.rect(self.screen, (255, 215, 0), popup_rect, 3)  
 
-        # Render message
         font = pygame.font.SysFont("Arial", 24)
         lines = message.split("\n")
         for i, line in enumerate(lines):
@@ -188,7 +173,6 @@ class CSVSetupScreen:
         try:
             editor = CSVEditor(self.current_csv)
             editor.run()
-            # Reload questions after editing
             load_questions(self.current_csv)
         except Exception as e:
             print(f"Error editing CSV: {e}")
@@ -197,8 +181,6 @@ class CSVSetupScreen:
 class TeamSetupScreen:
     def __init__(self):
         self.screen = pygame.display.set_mode((WIDTH, HEIGHT))
-
-        # Load fonts
         try:
             self.font_large = pygame.font.Font("Fonts/ARCADE_N.TTF", 72)
             self.font_medium = pygame.font.Font("Fonts/ARCADE_N.TTF", 48)
@@ -210,25 +192,20 @@ class TeamSetupScreen:
             self.font_small = pygame.font.SysFont('Arial', 36, bold=True)
             self.font_thin = pygame.font.SysFont('Arial', 24, bold=True)
 
-        # Team setup variables
         self.team_count = 2
         self.team_inputs = []
         self.active_input = None
 
-        # Initial video background
         self.video = cv2.VideoCapture("Larawan/team2.mp4")
         self.current_video = "Larawan/team2.mp4"
 
-        # Team box background
         self.team_bg = pygame.image.load('Larawan/Bg5.png').convert()
 
-        # Colors
         self.gold_color = (212, 175, 55)
         self.name_color = (238, 202, 62)
         self.white = (255, 255, 255)
         self.red = (255, 0, 0)
 
-        # Navigation buttons
         self.prev_button = pygame.Rect(20, 30, 200, 100)
         self.done_button = pygame.Rect(WIDTH - 320, 30, 360, 100)
 
@@ -246,34 +223,29 @@ class TeamSetupScreen:
     def show(self):
         running = True
         input_boxes = []
-        validation_message = "Sagoot Showdown"  # Default message
+        validation_message = "Sagoot Showdown" 
 
         while running:
-            # Dynamically switch video based on team count
             video_file = f"Larawan/team{self.team_count}.mp4"
             if self.current_video != video_file:
                 self.video.release()
                 self.video = cv2.VideoCapture(video_file)
                 self.current_video = video_file
 
-            # Render video background
             self.screen.blit(self.get_video_frame(), (0, 0))
 
             center_x = WIDTH // 2
             button_y = 510
 
-            # Minus button
             minus_radius = 50
             minus_button_pos = (center_x + 120, button_y)
             s = pygame.Surface((minus_radius*2, minus_radius*2), pygame.SRCALPHA)
             pygame.draw.circle(s, (200, 0, 0, 0), (minus_radius, minus_radius), minus_radius)
             self.screen.blit(s, (minus_button_pos[0] - minus_radius, minus_button_pos[1] - minus_radius))
 
-            # Team count text (smaller)
             count_display = self.font_medium.render(str(self.team_count), True, (238, 202, 62))
             self.screen.blit(count_display, ((center_x + 300) - count_display.get_width() // 2 - 15, button_y - count_display.get_height() + 60 // 2))
 
-            # Plus button
             plus_radius = 50
             plus_button_pos = (center_x + 440, button_y)
             s = pygame.Surface((plus_radius*2, plus_radius*2), pygame.SRCALPHA)
@@ -282,9 +254,8 @@ class TeamSetupScreen:
 
             if len(self.team_inputs) != self.team_count:
                 self.team_inputs = ["" for _ in range(self.team_count)]
-                validation_message = "Maglagay ng pangalan"  # Reset message when team count changes
+                validation_message = "Maglagay ng pangalan" 
 
-            # Check if all teams have names
             if all(name.strip() != "" for name in self.team_inputs):
                 validation_message = "Pindutin ang START"
             elif validation_message == "Sagoot Showdown":

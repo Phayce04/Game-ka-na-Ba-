@@ -21,7 +21,7 @@ answered_img = pygame.image.load("Larawan/flipped.png")
 answered_img = pygame.transform.scale(answered_img, (WIDTH // 6, HEIGHT/8))
 pygame.mixer.init()
 pygame.mixer.music.load('Tunog/bgm.wav')
-pygame.mixer.music.set_volume(0)  
+pygame.mixer.music.set_volume(1)  
 pygame.mixer.music.play(-1) 
 gameDisplay = pygame.display.set_mode((WIDTH, HEIGHT), pygame.FULLSCREEN)
 pygame.display.set_caption('Bilis Sagot')
@@ -278,9 +278,9 @@ class Button:
 
 class Pane(object):
     def __init__(self):
-        self.font = pygame.font.Font("Fonts/bernoru-blackultraexpanded.otf", 15)
-        self.score_font = pygame.font.Font("Fonts/bernoru-blackultraexpanded.otf", 17)
-        self.placeholder_font = pygame.font.Font("Fonts/ArchivoBlack-Regular.ttf", 24)
+        self.font = pygame.font.Font("Fonts/ARCADE_N.TTF", 15)
+        self.score_font = pygame.font.Font("Fonts/ARCADE_N.TTF", 24)
+        self.placeholder_font = pygame.font.Font("Fonts/ARCADE_N.TTF", 24)
         self.placeholder_text = "SELECT A TEAM"
         self.placeholder_rect = pygame.Rect(0, 6 * (HEIGHT / 8), WIDTH, HEIGHT / 8)
         
@@ -301,11 +301,10 @@ class Pane(object):
 
     def draw_placeholder_area(self):
         # Create a transparent surface for the background
-        bg_surface = pygame.Surface((WIDTH, int(HEIGHT/8)), pygame.SRCALPHA)
-        self.screen.blit(bg_surface, self.placeholder_rect)
+        self.screen.blit(self.message_bg, self.placeholder_rect)
         self.placeholder_bg_copy = self.screen.subsurface(self.placeholder_rect).copy()
 
-        # Draw text (non-transparent)
+        # Animate text scale (simplified)
         text_surface = self.placeholder_font.render(self.placeholder_text, True, pygame.Color('#eeca3e'))
         text_shadow = self.placeholder_font.render(self.placeholder_text, True, (0, 0, 0))
 
@@ -464,8 +463,8 @@ class Pane(object):
                 else:
                     # Regular cells - transparent borders
                     border_surface = pygame.Surface((cell_width, cell_height), pygame.SRCALPHA)
-                    pygame.draw.rect(border_surface, (238, 202, 62, 0), border_surface.get_rect(), 3)  # Outer border
-                    pygame.draw.rect(border_surface, (0, 0, 0, 0), border_surface.get_rect(), 1)  # Inner border
+                    pygame.draw.rect(border_surface, (238, 202, 62, 0), border_surface.get_rect(), 3)  
+                    pygame.draw.rect(border_surface, (0, 0, 0, 0), border_surface.get_rect(), 1)  
                     self.screen.blit(border_surface, rect)
 
         pygame.display.update()
@@ -480,19 +479,16 @@ class Pane(object):
     def show_score(self):
         score_area = pygame.Rect(0, HEIGHT / 8 * 7, WIDTH, HEIGHT / 8)
         
-        # Semi-transparent background
         score_bg = pygame.Surface((WIDTH, HEIGHT/8), pygame.SRCALPHA)
-        pygame.draw.rect(score_bg, (30, 30, 80, 0), score_bg.get_rect())  # 180 alpha
+        pygame.draw.rect(score_bg, (30, 30, 80, 0), score_bg.get_rect())  
         self.screen.blit(score_bg, score_area)
         
-        # Semi-transparent border
         border_surface = pygame.Surface((WIDTH, HEIGHT/8), pygame.SRCALPHA)
         pygame.draw.rect(border_surface, (255, 215, 0, 0), border_surface.get_rect(), 3)
         self.screen.blit(border_surface, score_area)
         
         cell_width = WIDTH / 6
         for i, (name, score) in enumerate(zip(team_names, team_scores)):
-            # Text remains non-transparent
             name_text = self.font.render(name, True, white)
             name_shadow = self.font.render(name, True, black)
             name_x = i * cell_width + cell_width // 2 - name_text.get_width() // 2
@@ -514,14 +510,11 @@ class Pane(object):
                 HEIGHT / 8 * 7, 
                 cell_width, 
                 HEIGHT / 8
-            )
-            
-            # Semi-transparent highlight
+            )          
             highlight = pygame.Surface((cell_width, HEIGHT / 8), pygame.SRCALPHA)
             pygame.draw.rect(highlight, (255, 255, 255, 0), highlight.get_rect())
             self.screen.blit(highlight, highlight_rect)
 
-            # Animated semi-transparent border
             border_thickness = 3 + int(2 * math.sin(pygame.time.get_ticks() / 200))
             border_surface = pygame.Surface((cell_width, HEIGHT / 8), pygame.SRCALPHA)
             pygame.draw.rect(border_surface, (255, 215, 0, 120), border_surface.get_rect(), border_thickness)
@@ -549,14 +542,11 @@ class SparkleParticles:
         self.y += math.sin(self.angle) * self.speed
         self.lifetime -= 1
         self.rotation += self.rotation_speed
-        # Fade out as lifetime decreases
         self.current_alpha = int(255 * (self.lifetime / self.max_lifetime))
     
     def draw(self, surface):
-        # Create a surface with per-pixel alpha
         particle_surface = pygame.Surface((self.size*2, self.size*2), pygame.SRCALPHA)
         
-        # Draw a star shape
         points = []
         for i in range(5):
             angle = math.radians(self.rotation + i * 72)
@@ -568,18 +558,14 @@ class SparkleParticles:
             points.extend([(self.size + outer_x, self.size + outer_y), 
                           (self.size + inner_x, self.size + inner_y)])
         
-        # Draw with fading alpha
         color_with_alpha = (*self.color[:3], self.current_alpha)
         pygame.draw.polygon(particle_surface, color_with_alpha, points)
         
-        # Draw to main surface
         surface.blit(particle_surface, (self.x - self.size, self.y - self.size))
 class Question(object):
     def __init__(self):
-        # Load custom font
         self.font = pygame.font.Font("Fonts/bernoru-blackultraexpanded.otf", 32)
 
-        # Load video backgrounds
         self.question_video = cv2.VideoCapture("Larawan/question.mp4")
         self.answer_video = cv2.VideoCapture("Larawan/answer.mp4")
 

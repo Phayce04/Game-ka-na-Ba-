@@ -777,6 +777,14 @@ current_answer = ""
 button_rects = None
 #mainloop
 while True:
+
+    if not pygame.mixer.music.get_busy():
+        pygame.mixer.music.stop()
+        pygame.mixer.music.load('Tunog/trial.wav')
+        pygame.mixer.music.set_volume(1)
+        pygame.mixer.music.play(-1)
+        main_game_music_playing = True
+
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             pygame.quit()
@@ -940,7 +948,9 @@ while True:
                 # ✅ Auto-transition after time expires
                 if timer.time_expired and not showing_answer and question_displayed_once:
                     showing_answer = True
+                    pygame.mixer.music.unpause()  # Resume BGM after timer ends
                     pygame.time.delay(1000)
+
 
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:

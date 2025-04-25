@@ -275,7 +275,6 @@ class Button:
         
     def is_clicked(self, pos):
         return self.rect.collidepoint(pos)
-
 class Pane(object):
     def __init__(self):
         self.font = pygame.font.Font("Fonts/ARCADE_N.TTF", 15)
@@ -283,12 +282,21 @@ class Pane(object):
         self.placeholder_font = pygame.font.Font("Fonts/ARCADE_N.TTF", 24)
         self.placeholder_text = "SELECT A TEAM"
         self.placeholder_rect = pygame.Rect(0, 6 * (HEIGHT / 8), WIDTH, HEIGHT / 8)
-        
-        # Load images with alpha
-        self.message_bg = pygame.image.load("Larawan/BG2.png").convert_alpha()
-        self.message_bg = pygame.transform.scale(self.message_bg, (WIDTH, int(HEIGHT/8)))
-        
-        # Load main background image with alpha
+
+        # Load background variations
+        self.message_bg_default = pygame.transform.scale(
+            pygame.image.load("Larawan/BG2.png").convert_alpha(), (WIDTH, int(HEIGHT / 8))
+        )
+        self.message_bg_correct = pygame.transform.scale(
+            pygame.image.load("Larawan/BG3.png").convert_alpha(), (WIDTH, int(HEIGHT / 8))
+        )
+        self.message_bg_wrong = pygame.transform.scale(
+            pygame.image.load("Larawan/BG4.png").convert_alpha(), (WIDTH, int(HEIGHT / 8))
+        )
+
+        self.message_bg = self.message_bg_default
+
+        # Load main background image
         self.background = pygame.image.load("Larawan/main.png").convert_alpha()
         self.background = pygame.transform.scale(self.background, (WIDTH, HEIGHT))
 
@@ -297,14 +305,14 @@ class Pane(object):
         self.draw_grid_flag = True
         self.sparkles = []
 
+        self.draw_placeholder_area()
         pygame.display.update()
 
     def draw_placeholder_area(self):
-        # Create a transparent surface for the background
+        # Use the current message_bg
         self.screen.blit(self.message_bg, self.placeholder_rect)
         self.placeholder_bg_copy = self.screen.subsurface(self.placeholder_rect).copy()
 
-        # Animate text scale (simplified)
         text_surface = self.placeholder_font.render(self.placeholder_text, True, pygame.Color('#eeca3e'))
         text_shadow = self.placeholder_font.render(self.placeholder_text, True, (0, 0, 0))
 
@@ -319,14 +327,17 @@ class Pane(object):
         start_time = pygame.time.get_ticks()
 
         original_text = self.placeholder_text
-        self.placeholder_text = ""  # Temporarily clear it
+        self.placeholder_text = ""  # Hide placeholder during notification
 
-        # Create a semi-transparent background
-        notification_bg = pygame.Surface((WIDTH, int(HEIGHT/8)), pygame.SRCALPHA)
-        pygame.draw.rect(notification_bg, (30, 30, 80, 0), notification_bg.get_rect())  # 180 alpha (70% opaque)
-        self.screen.blit(notification_bg, self.placeholder_rect)
+        # Set background based on correctness
+        if message_data['correct']:
+            self.message_bg = self.message_bg_correct
+        else:
+            self.message_bg = self.message_bg_wrong
 
-        # Rest of the notification code remains the same for text
+        # Draw updated background
+        self.screen.blit(self.message_bg, self.placeholder_rect)
+
         current_leader = max(range(len(team_scores)), key=lambda i: team_scores[i])
         leading_team = team_names[current_leader]
         team_name = team_names[message_data['team_index']]
@@ -355,12 +366,14 @@ class Pane(object):
                 message = f"BUMABA NG {points} ANG {team_name}, KAILANGAN NA NIYANG HUMABOL NG {deficit}"
                 color = pygame.Color('#ff6347')
 
-        # Draw text (non-transparent)
+        # Draw message text
         font = pygame.font.Font("Fonts/ArchivoBlack-Regular.ttf", 32)
         text_surface = font.render(message, True, white)
         shadow_surface = font.render(message, True, black)
+
         x = WIDTH // 2 - text_surface.get_width() // 2
         y = self.placeholder_rect.centery - text_surface.get_height() // 2
+
         self.screen.blit(shadow_surface, (x + 2, y + 2))
         self.screen.blit(text_surface, (x, y))
 
@@ -369,15 +382,21 @@ class Pane(object):
 
         pygame.display.update(self.placeholder_rect)
 
+        # Wait for the duration of the notification
         while pygame.time.get_ticks() - start_time < duration:
             clock.tick(60)
 
+        # Restore original background and placeholder
+        self.message_bg = self.message_bg_default
         self.placeholder_text = original_text
+
         self.draw_placeholder_area()
         self.draw_grid()
         self.show_score()
+
         if selected_team_index >= 0:
             self.show_selected_box()
+
         pygame.display.update()
 
     def draw_grid(self):
@@ -439,10 +458,8 @@ class Pane(object):
                     self.screen.blit(header_text_surface, (text_x, text_y))
 
                 elif row == 6:
-                    # Placeholder/message row
-                    placeholder_bg = pygame.Surface((WIDTH, cell_height), pygame.SRCALPHA)
-                    pygame.draw.rect(placeholder_bg, (20, 25, 80, 0), placeholder_bg.get_rect())  # 180 alpha
-                    self.screen.blit(placeholder_bg, (0, row * cell_height))
+                    # Placeholder/message row using BG2 as background
+                    self.screen.blit(self.message_bg_default, (0, row * cell_height))
 
                     # Border (semi-transparent)
                     border_surface = pygame.Surface((WIDTH, cell_height), pygame.SRCALPHA)
@@ -771,7 +788,9 @@ while True:
             if game_state in ["GAME_OVER", "TEAM_SETUP"] and restart_button_rect.collidepoint(event.pos):
                 GameOverScreen().reset_game()
                 continue
-
+    if event.type == pygame.KEYDOWN:
+        if event.key == pygame.K_ESCAPE:
+            gameDisplay = pygame.display.set_mode((WIDTH, HEIGHT))              
     if game_state == "HOME":
         home_screen = HomeScreen()
         home_screen.show()
